@@ -209,6 +209,18 @@ legend {
   min-width: 132px;
 }
 
+.absence-toggle {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  min-height: 28px;
+}
+
+.absence-toggle input {
+  height: 18px;
+  width: 18px;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;

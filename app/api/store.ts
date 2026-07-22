@@ -298,6 +298,28 @@ export async function deleteParticipant(payload: {
   ]);
 }
 
+export async function updateParticipantAbsence(payload: {
+  id?: number;
+  eventId?: number;
+  groupId?: number;
+  isAbsent?: boolean;
+}) {
+  const id = Number(payload.id);
+  const eventId = Number(payload.eventId);
+  const groupId = Number(payload.groupId);
+  if (!id || !eventId || !groupId) {
+    throw new Error("更新対象が正しくありません。");
+  }
+  await assertCanEdit(groupId);
+  const result = await db()
+    .prepare("UPDATE participants SET is_absent = ?, updated_at = ? WHERE id = ? AND event_id = ? AND group_id = ?")
+    .bind(payload.isAbsent ? 1 : 0, new Date().toISOString(), id, eventId, groupId)
+    .run();
+  if (!result.meta.changes) {
+    throw new Error("更新対象が見つかりません。");
+  }
+}
+
 export async function copyPreviousEvent(targetEventId: number) {
   await assertAdmin();
   await initialize();

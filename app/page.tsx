@@ -207,6 +207,37 @@ export default function Home() {
     await loadData(selectedEvent.id);
   }
 
+  async function updateAbsence(participant: Participant, isAbsent: boolean) {
+    if (!selectedEvent || !selectedGroup) return;
+    setData((current) => {
+      if (!current) return current;
+      return {
+        ...current,
+        participants: current.participants.map((item) =>
+          item.id === participant.id ? { ...item, isAbsent } : item,
+        ),
+      };
+    });
+    const response = await fetch("/api/participants", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        id: participant.id,
+        eventId: selectedEvent.id,
+        groupId: selectedGroup.id,
+        isAbsent,
+      }),
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      setMessage(payload.error ?? "欠席状態を更新できませんでした。");
+      await loadData(selectedEvent.id);
+      return;
+    }
+    setMessage(isAbsent ? "欠席にしました。" : "参加に戻しました。");
+    await loadData(selectedEvent.id);
+  }
+
   function roleName(id: number) {
     return data?.roles.find((role) => role.id === id)?.name ?? "";
   }
@@ -325,6 +356,7 @@ export default function Home() {
             canEdit={canEdit}
             onEdit={startEdit}
             onDelete={deleteParticipant}
+            onAbsenceChange={updateAbsence}
           />
           <p className="updated">
             最終更新：{latestUpdatedAt(participants)}
@@ -565,12 +597,14 @@ function ParticipantTable({
   canEdit,
   onEdit,
   onDelete,
+  onAbsenceChange,
 }: {
   participants: Participant[];
   data: AppData;
   canEdit: boolean;
   onEdit: (participant: Participant) => void;
   onDelete: (participant: Participant) => void;
+  onAbsenceChange: (participant: Participant, isAbsent: boolean) => void;
 }) {
   return (
     <div className="table-wrap">
@@ -590,7 +624,19 @@ function ParticipantTable({
         <tbody>
           {participants.map((participant) => (
             <tr key={participant.id} className={participant.isAbsent ? "absent" : ""}>
-              <td>{participant.isAbsent ? "欠席" : ""}</td>
+              <td>
+                <label className="absence-toggle">
+                  <input
+                    type="checkbox"
+                    checked={participant.isAbsent}
+                    disabled={!canEdit}
+                    onChange={(event) =>
+                      onAbsenceChange(participant, event.target.checked)
+                    }
+                    aria-label={`${participant.name}さんを欠席にする`}
+                  />
+                </label>
+              </td>
               <td>{participant.name}</td>
               <td>
                 {roleLabels(data, participant).join("、") || (
