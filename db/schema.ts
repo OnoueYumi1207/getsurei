@@ -40,7 +40,7 @@ export const participants = sqliteTable("participants", {
   isAbsent: integer("is_absent", { mode: "boolean" }).notNull(),
   sendanTeaCount: integer("sendan_tea_count").notNull(),
   transportType: text("transport_type", {
-    enum: ["driver", "passenger", "shuttle"],
+    enum: ["none", "driver", "passenger", "shuttle"],
   }).notNull(),
   rideDriverParticipantId: integer("ride_driver_participant_id"),
   outboundShuttleId: integer("outbound_shuttle_id"),

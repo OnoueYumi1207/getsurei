@@ -73,7 +73,7 @@ export type ParticipantPayload = {
   name: string;
   isAbsent: boolean;
   sendanTeaCount: number;
-  transportType: "driver" | "passenger" | "shuttle";
+  transportType: "none" | "driver" | "passenger" | "shuttle";
   rideDriverParticipantId: number | null;
   outboundShuttleId: number | null;
   returnShuttleId: number | null;
@@ -430,6 +430,11 @@ function normalizePayload(payload: ParticipantPayload) {
     name: payload.name.trim(),
     isAbsent: Boolean(payload.isAbsent),
     sendanTeaCount: Math.max(0, Number(payload.sendanTeaCount) || 0),
+    transportType: ["none", "driver", "passenger", "shuttle"].includes(
+      payload.transportType,
+    )
+      ? payload.transportType
+      : "none",
     rideDriverParticipantId:
       payload.transportType === "passenger" ? payload.rideDriverParticipantId : null,
     outboundShuttleId:

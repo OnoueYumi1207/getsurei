@@ -17,7 +17,7 @@ type ReportParticipant = {
   eventId: number;
   isAbsent: boolean;
   sendanTeaCount: number;
-  transportType: "driver" | "passenger" | "shuttle";
+  transportType: "none" | "driver" | "passenger" | "shuttle";
   rideDriverParticipantId: number | null;
   outboundShuttleId: number | null;
   returnShuttleId: number | null;
@@ -202,6 +202,7 @@ function roleText(data: ReportData, participant: ReportParticipant) {
 }
 
 function transportText(data: ReportData, participant: ReportParticipant) {
+  if (participant.transportType === "none") return "選択なし";
   if (participant.transportType === "driver") return "ドライバー";
   if (participant.transportType === "passenger") {
     const driver = data.participants.find(

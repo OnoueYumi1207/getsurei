@@ -25,7 +25,7 @@ type Participant = {
   name: string;
   isAbsent: boolean;
   sendanTeaCount: number;
-  transportType: "driver" | "passenger" | "shuttle";
+  transportType: "none" | "driver" | "passenger" | "shuttle";
   rideDriverParticipantId: number | null;
   outboundShuttleId: number | null;
   returnShuttleId: number | null;
@@ -53,7 +53,7 @@ const blankForm = {
   name: "",
   isAbsent: false,
   sendanTeaCount: 0,
-  transportType: "driver" as Participant["transportType"],
+  transportType: "none" as Participant["transportType"],
   rideDriverParticipantId: null as number | null,
   outboundShuttleId: null as number | null,
   returnShuttleId: null as number | null,
@@ -530,6 +530,7 @@ export default function Home() {
               <legend>移動手段</legend>
               <div className="radio-row">
                 {[
+                  ["none", "選択なし"],
                   ["driver", "ドライバー"],
                   ["passenger", "同乗"],
                   ["shuttle", "送迎希望"],
@@ -821,6 +822,7 @@ function ShuttleSelect({
 }
 
 function transportLabel(participant: Participant, data: AppData) {
+  if (participant.transportType === "none") return "選択なし";
   if (participant.transportType === "driver") return "ドライバー";
   if (participant.transportType === "passenger") {
     const driver = data.participants.find(
