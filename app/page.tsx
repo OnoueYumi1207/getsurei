@@ -664,9 +664,7 @@ function ParticipantTable({
               </td>
               <td>{participant.name}</td>
               <td>
-                {roleLabels(data, participant).join("、") || (
-                  <span className="pending">未定</span>
-                )}
+                {roleLabels(data, participant).join("、")}
               </td>
               <td>{participant.sendanTeaCount}</td>
               <td>{transportLabel(participant, data)}</td>
