@@ -202,7 +202,7 @@ function roleText(data: ReportData, participant: ReportParticipant) {
         return name;
       })
       .filter(Boolean)
-      .join("、") || "未定"
+      .join("、")
   );
 }
 
