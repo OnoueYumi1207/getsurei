@@ -11,10 +11,12 @@ type ReportShuttle = {
   capacity: number | null;
   note: string | null;
 };
+type ReportGroup = { id: number; name: string };
 type ReportParticipant = {
   id: number;
   name: string;
   eventId: number;
+  groupId: number;
   isAbsent: boolean;
   sendanTeaCount: number;
   transportType: "none" | "driver" | "passenger" | "shuttle";
@@ -31,6 +33,7 @@ type ReportParticipant = {
   } | null;
 };
 type ReportData = {
+  groups: ReportGroup[];
   roles: ReportRole[];
   shuttles: ReportShuttle[];
   participants: ReportParticipant[];
@@ -84,6 +87,7 @@ function ParticipantsReport({
       <table>
         <thead>
           <tr>
+            <th>伝道会</th>
             <th>氏名</th>
             <th>担当</th>
             <th>仙丹茶</th>
@@ -95,6 +99,7 @@ function ParticipantsReport({
         <tbody>
           {active.map((participant) => (
             <tr key={participant.id}>
+              <td>{groupName(data, participant.groupId)}</td>
               <td>{participant.name}</td>
               <td>{roleText(data, participant)}</td>
               <td>{participant.sendanTeaCount}</td>
@@ -202,7 +207,7 @@ function roleText(data: ReportData, participant: ReportParticipant) {
 }
 
 function transportText(data: ReportData, participant: ReportParticipant) {
-  if (participant.transportType === "none") return "選択なし";
+  if (participant.transportType === "none") return "";
   if (participant.transportType === "driver") return "ドライバー";
   if (participant.transportType === "passenger") {
     const driver = data.participants.find(
@@ -211,6 +216,10 @@ function transportText(data: ReportData, participant: ReportParticipant) {
     return `同乗${driver ? `（${driver.name}）` : ""}`;
   }
   return "送迎希望";
+}
+
+function groupName(data: ReportData, groupId: number) {
+  return data.groups.find((group) => group.id === groupId)?.name ?? "";
 }
 
 function routeText(
