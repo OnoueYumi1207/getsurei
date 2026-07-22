@@ -41,6 +41,7 @@ type Participant = {
 };
 type AppData = {
   user: { displayName: string; email: string } | null;
+  isAdmin: boolean;
   groups: Group[];
   roles: Role[];
   shuttles: Shuttle[];
@@ -73,7 +74,6 @@ export default function Home() {
   const [editing, setEditing] = useState<Participant | "new" | null>(null);
   const [form, setForm] = useState(blankForm);
   const [message, setMessage] = useState("");
-  const [newMonthDate, setNewMonthDate] = useState("");
 
   async function loadData(nextEventId = selectedEventId) {
     const response = await fetch("/api/app", { cache: "no-store" });
@@ -160,22 +160,29 @@ export default function Home() {
     await loadData(selectedEvent.id);
   }
 
-  async function createMonth() {
-    if (!newMonthDate) return;
+  async function copyFromPreviousMonth() {
+    if (!selectedEvent) return;
+    const hasParticipants = data?.participants.some(
+      (participant) => participant.eventId === selectedEvent.id,
+    );
+    if (hasParticipants) {
+      const confirmed = window.confirm(
+        `${selectedEvent.monthLabel}の参加者を前月データで上書きします。よろしいですか？`,
+      );
+      if (!confirmed) return;
+    }
     const response = await fetch("/api/events", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ eventDate: newMonthDate }),
+      body: JSON.stringify({ eventId: selectedEvent.id }),
     });
     const payload = await response.json();
     if (!response.ok) {
-      setMessage(payload.error ?? "新しい月を作成できませんでした。");
+      setMessage(payload.error ?? "前月からコピーできませんでした。");
       return;
     }
-    setSelectedEventId(payload.event.id);
-    setNewMonthDate("");
-    setMessage("新しい月を作成しました。");
-    await loadData(payload.event.id);
+    setMessage(`${payload.copiedCount ?? 0}名を前月からコピーしました。`);
+    await loadData(selectedEvent.id);
   }
 
   async function deleteParticipant(participant: Participant) {
@@ -265,16 +272,13 @@ export default function Home() {
             ))}
           </select>
         </label>
-        <label>
-          新しい月
-          <input
-            type="date"
-            value={newMonthDate}
-            onChange={(event) => setNewMonthDate(event.target.value)}
-          />
-        </label>
-        <button onClick={createMonth}>前月から作成</button>
+        <button disabled={!data.isAdmin} onClick={copyFromPreviousMonth}>
+          前月からコピー
+        </button>
       </section>
+      {!data.isAdmin && data.user && (
+        <p className="admin-note">前月からコピーは管理者のみ実行できます。</p>
+      )}
 
       <nav className="tabs" aria-label="伝道会">
         {data.groups.map((group) => (

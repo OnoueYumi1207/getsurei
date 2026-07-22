@@ -38,6 +38,15 @@ const GROUPS = [
 
 const ADMIN_EDITORS = ["尾ノ上裕美"];
 
+const PRESET_EVENTS = [
+  ["2026-07-12", "7月"],
+  ["2026-08-09", "8月"],
+  ["2026-09-13", "9月"],
+  ["2026-10-11", "10月"],
+  ["2026-11-08", "11月"],
+  ["2026-12-13", "12月"],
+] as const;
+
 const SHUTTLES = [
   ["outbound", "北本駅8:20", 2, null],
   ["outbound", "鴻巣駅8:40", null, "スタッフ"],
@@ -137,12 +146,18 @@ export async function initialize() {
       ),
     );
   }
-  if ((counts[3].results?.[0]?.count as number) === 0) {
-    const now = new Date().toISOString();
-    await d1
-      .prepare("INSERT INTO events (name, event_date, month_label, created_at, updated_at) VALUES (?, ?, ?, ?, ?)")
-      .bind("明王招福護摩供", "2026-07-12", "7月", now, now)
-      .run();
+  for (const [eventDate, monthLabel] of PRESET_EVENTS) {
+    const existing = await d1
+      .prepare("SELECT id FROM events WHERE event_date = ?")
+      .bind(eventDate)
+      .first();
+    if (!existing) {
+      const now = new Date().toISOString();
+      await d1
+        .prepare("INSERT INTO events (name, event_date, month_label, created_at, updated_at) VALUES (?, ?, ?, ?, ?)")
+        .bind("明王招福護摩供", eventDate, monthLabel, now, now)
+        .run();
+    }
   }
 }
 
@@ -154,7 +169,7 @@ export async function appData() {
       d1.prepare("SELECT id, name, editor_name AS editorName FROM groups ORDER BY id"),
       d1.prepare("SELECT id, name, sort_order AS sortOrder FROM roles WHERE is_active = 1 ORDER BY sort_order"),
       d1.prepare("SELECT id, direction, name, capacity, note, sort_order AS sortOrder FROM shuttle_options WHERE is_active = 1 ORDER BY direction, sort_order"),
-      d1.prepare("SELECT id, name, event_date AS eventDate, month_label AS monthLabel FROM events ORDER BY event_date DESC"),
+      d1.prepare("SELECT id, name, event_date AS eventDate, month_label AS monthLabel FROM events ORDER BY event_date ASC"),
       d1.prepare("SELECT id, event_id AS eventId, group_id AS groupId, name, is_absent AS isAbsent, sendan_tea_count AS sendanTeaCount, transport_type AS transportType, ride_driver_participant_id AS rideDriverParticipantId, outbound_shuttle_id AS outboundShuttleId, return_shuttle_id AS returnShuttleId, other_role_text AS otherRoleText, created_at AS createdAt, updated_at AS updatedAt FROM participants ORDER BY group_id, name"),
       d1.prepare("SELECT participant_id AS participantId, role_id AS roleId FROM participant_roles"),
       d1.prepare("SELECT participant_id AS participantId, outbound_date AS outboundDate, outbound_time AS outboundTime, return_date AS returnDate, return_time AS returnTime FROM carrier_schedules"),
@@ -172,6 +187,7 @@ export async function appData() {
 
   return {
     user,
+    isAdmin: Boolean(user && ADMIN_EDITORS.includes(user.displayName)),
     groups: (groups.results ?? []).map((group) => ({
       ...group,
       editorNames: [
@@ -206,6 +222,14 @@ export async function assertCanEdit(groupId: number) {
   ];
   if (!group || !editors.includes(user.displayName)) {
     throw new Error("この伝道会を編集する権限がありません。");
+  }
+}
+
+async function assertAdmin() {
+  const user = await getChatGPTUser();
+  if (!user) throw new Error("操作するにはログインしてください。");
+  if (!ADMIN_EDITORS.includes(user.displayName)) {
+    throw new Error("この操作は管理者のみ実行できます。");
   }
 }
 
@@ -274,63 +298,67 @@ export async function deleteParticipant(payload: {
   ]);
 }
 
-export async function createEventFromPrevious(eventDate: string) {
+export async function copyPreviousEvent(targetEventId: number) {
+  await assertAdmin();
   await initialize();
   const now = new Date().toISOString();
-  const parsed = new Date(`${eventDate}T00:00:00`);
-  if (Number.isNaN(parsed.getTime())) throw new Error("開催日を選択してください。");
-  const monthLabel = `${parsed.getMonth() + 1}月`;
   const d1 = db();
-  const existing = await d1
-    .prepare("SELECT id FROM events WHERE event_date = ?")
-    .bind(eventDate)
-    .first();
-  if (existing) throw new Error("同じ開催日の行事がすでにあります。");
-
+  const target = await d1
+    .prepare("SELECT id, event_date AS eventDate FROM events WHERE id = ?")
+    .bind(targetEventId)
+    .first<{ id: number; eventDate: string }>();
+  if (!target) throw new Error("コピー先の行事が見つかりません。");
   const previous = await d1
-    .prepare("SELECT id FROM events ORDER BY event_date DESC LIMIT 1")
+    .prepare("SELECT id FROM events WHERE event_date < ? ORDER BY event_date DESC LIMIT 1")
+    .bind(target.eventDate)
     .first<{ id: number }>();
-  const eventResult = await d1
-    .prepare("INSERT INTO events (name, event_date, month_label, created_at, updated_at) VALUES (?, ?, ?, ?, ?)")
-    .bind("明王招福護摩供", eventDate, monthLabel, now, now)
-    .run();
-  const newEventId = eventResult.meta.last_row_id;
+  if (!previous) throw new Error("前月の行事がありません。");
 
-  if (previous) {
-    const source = await d1
-      .prepare("SELECT id, group_id AS groupId, name, sendan_tea_count AS sendanTeaCount, transport_type AS transportType, ride_driver_participant_id AS rideDriverParticipantId, outbound_shuttle_id AS outboundShuttleId, return_shuttle_id AS returnShuttleId, other_role_text AS otherRoleText FROM participants WHERE event_id = ? ORDER BY id")
-      .bind(previous.id)
-      .all<Record<string, unknown>>();
-    const oldToNew = new Map<number, number>();
-    for (const participant of source.results ?? []) {
-      const result = await d1
-        .prepare("INSERT INTO participants (event_id, group_id, name, is_absent, sendan_tea_count, transport_type, ride_driver_participant_id, outbound_shuttle_id, return_shuttle_id, other_role_text, created_at, updated_at) VALUES (?, ?, ?, 0, ?, ?, NULL, ?, ?, ?, ?, ?)")
-        .bind(newEventId, participant.groupId, participant.name, participant.sendanTeaCount, participant.transportType, participant.outboundShuttleId, participant.returnShuttleId, participant.otherRoleText ?? "", now, now)
-        .run();
-      oldToNew.set(participant.id as number, result.meta.last_row_id);
-    }
-    for (const participant of source.results ?? []) {
-      const oldDriver = participant.rideDriverParticipantId as number | null;
-      if (oldDriver && oldToNew.has(oldDriver)) {
-        await d1
-          .prepare("UPDATE participants SET ride_driver_participant_id = ? WHERE id = ?")
-          .bind(oldToNew.get(oldDriver), oldToNew.get(participant.id as number))
-          .run();
-      }
-    }
-    const roles = await d1
-      .prepare("SELECT participant_id AS participantId, role_id AS roleId FROM participant_roles WHERE participant_id IN (SELECT id FROM participants WHERE event_id = ?)")
-      .bind(previous.id)
-      .all<Record<string, unknown>>();
-    const inserts = (roles.results ?? [])
-      .filter((role) => oldToNew.has(role.participantId as number))
-      .map((role) =>
-        d1.prepare("INSERT INTO participant_roles (participant_id, role_id) VALUES (?, ?)").bind(oldToNew.get(role.participantId as number), role.roleId),
-      );
-    if (inserts.length) await d1.batch(inserts);
+  const existingTarget = await d1
+    .prepare("SELECT id FROM participants WHERE event_id = ?")
+    .bind(target.id)
+    .all<{ id: number }>();
+  if (existingTarget.results?.length) {
+    await d1.batch([
+      d1.prepare("DELETE FROM participant_roles WHERE participant_id IN (SELECT id FROM participants WHERE event_id = ?)").bind(target.id),
+      d1.prepare("DELETE FROM carrier_schedules WHERE participant_id IN (SELECT id FROM participants WHERE event_id = ?)").bind(target.id),
+      d1.prepare("DELETE FROM participants WHERE event_id = ?").bind(target.id),
+    ]);
   }
 
-  return { id: newEventId, name: "明王招福護摩供", eventDate, monthLabel };
+  const source = await d1
+    .prepare("SELECT id, group_id AS groupId, name, sendan_tea_count AS sendanTeaCount, transport_type AS transportType, ride_driver_participant_id AS rideDriverParticipantId, outbound_shuttle_id AS outboundShuttleId, return_shuttle_id AS returnShuttleId, other_role_text AS otherRoleText FROM participants WHERE event_id = ? ORDER BY id")
+    .bind(previous.id)
+    .all<Record<string, unknown>>();
+  const oldToNew = new Map<number, number>();
+  for (const participant of source.results ?? []) {
+    const result = await d1
+      .prepare("INSERT INTO participants (event_id, group_id, name, is_absent, sendan_tea_count, transport_type, ride_driver_participant_id, outbound_shuttle_id, return_shuttle_id, other_role_text, created_at, updated_at) VALUES (?, ?, ?, 0, ?, ?, NULL, ?, ?, ?, ?, ?)")
+      .bind(target.id, participant.groupId, participant.name, participant.sendanTeaCount, participant.transportType, participant.outboundShuttleId, participant.returnShuttleId, participant.otherRoleText ?? "", now, now)
+      .run();
+    oldToNew.set(participant.id as number, result.meta.last_row_id);
+  }
+  for (const participant of source.results ?? []) {
+    const oldDriver = participant.rideDriverParticipantId as number | null;
+    if (oldDriver && oldToNew.has(oldDriver)) {
+      await d1
+        .prepare("UPDATE participants SET ride_driver_participant_id = ? WHERE id = ?")
+        .bind(oldToNew.get(oldDriver), oldToNew.get(participant.id as number))
+        .run();
+    }
+  }
+  const roles = await d1
+    .prepare("SELECT participant_id AS participantId, role_id AS roleId FROM participant_roles WHERE participant_id IN (SELECT id FROM participants WHERE event_id = ?)")
+    .bind(previous.id)
+    .all<Record<string, unknown>>();
+  const inserts = (roles.results ?? [])
+    .filter((role) => oldToNew.has(role.participantId as number))
+    .map((role) =>
+      d1.prepare("INSERT INTO participant_roles (participant_id, role_id) VALUES (?, ?)").bind(oldToNew.get(role.participantId as number), role.roleId),
+    );
+  if (inserts.length) await d1.batch(inserts);
+
+  return { copiedCount: source.results?.length ?? 0 };
 }
 
 function normalizePayload(payload: ParticipantPayload) {

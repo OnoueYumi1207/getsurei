@@ -164,6 +164,13 @@ legend {
   min-width: 320px;
 }
 
+.admin-note {
+  color: var(--muted);
+  font-size: 13px;
+  margin: -4px auto 12px;
+  max-width: 1280px;
+}
+
 .tabs {
   max-width: 1280px;
   margin: 0 auto 14px;
