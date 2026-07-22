@@ -48,6 +48,10 @@ type AppData = {
   events: EventRecord[];
   participants: Participant[];
 };
+type SelectedGroupId = number | "summary" | null;
+
+const selectedEventStorageKey = "myoo-goma-selected-event-id";
+const selectedGroupStorageKey = "myoo-goma-selected-group-id";
 
 const blankForm = {
   name: "",
@@ -67,22 +71,59 @@ const blankForm = {
   },
 };
 
+function readStoredEventId() {
+  const value = window.localStorage.getItem(selectedEventStorageKey);
+  const id = Number(value);
+  return Number.isFinite(id) && id > 0 ? id : null;
+}
+
+function readStoredGroupId(): SelectedGroupId {
+  const value = window.localStorage.getItem(selectedGroupStorageKey);
+  if (value === "summary") return "summary";
+  const id = Number(value);
+  return Number.isFinite(id) && id > 0 ? id : null;
+}
+
 export default function Home() {
   const [data, setData] = useState<AppData | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
-  const [selectedGroupId, setSelectedGroupId] = useState<number | "summary">(1);
+  const [selectedGroupId, setSelectedGroupId] = useState<SelectedGroupId>(null);
   const [editing, setEditing] = useState<Participant | "new" | null>(null);
   const [form, setForm] = useState(blankForm);
   const [message, setMessage] = useState("");
   const nameInputRef = useRef<HTMLInputElement>(null);
 
-  async function loadData(nextEventId = selectedEventId) {
+  async function loadData(nextEventId?: number | null) {
     const response = await fetch("/api/app", { cache: "no-store" });
     const payload = (await response.json()) as AppData;
     setData(payload);
-    if (!nextEventId && payload.events[0]) {
-      setSelectedEventId(payload.events[0].id);
-    }
+    setSelectedEventId((current) => {
+      const requested = nextEventId ?? current;
+      if (requested && payload.events.some((event) => event.id === requested)) {
+        return requested;
+      }
+      const stored = readStoredEventId();
+      if (stored && payload.events.some((event) => event.id === stored)) {
+        return stored;
+      }
+      return payload.events[0]?.id ?? null;
+    });
+    setSelectedGroupId((current) => {
+      if (
+        current === "summary" ||
+        (current && payload.groups.some((group) => group.id === current))
+      ) {
+        return current;
+      }
+      const stored = readStoredGroupId();
+      if (
+        stored === "summary" ||
+        (stored && payload.groups.some((group) => group.id === stored))
+      ) {
+        return stored;
+      }
+      return payload.groups[0]?.id ?? null;
+    });
   }
 
   useEffect(() => {
@@ -91,7 +132,6 @@ export default function Home() {
     loadData();
     const timer = window.setInterval(() => loadData(), 8000);
     return () => window.clearInterval(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -99,6 +139,18 @@ export default function Home() {
       window.setTimeout(() => nameInputRef.current?.focus(), 0);
     }
   }, [editing]);
+
+  useEffect(() => {
+    if (selectedEventId) {
+      window.localStorage.setItem(selectedEventStorageKey, String(selectedEventId));
+    }
+  }, [selectedEventId]);
+
+  useEffect(() => {
+    if (selectedGroupId) {
+      window.localStorage.setItem(selectedGroupStorageKey, String(selectedGroupId));
+    }
+  }, [selectedGroupId]);
 
   const selectedEvent = data?.events.find((event) => event.id === selectedEventId);
   const selectedGroup =
@@ -271,7 +323,7 @@ export default function Home() {
     );
   }
 
-  if (!data || !selectedEvent) {
+  if (!data || !selectedEvent || !selectedGroupId) {
     return <main className="loading">読み込み中です。</main>;
   }
 
