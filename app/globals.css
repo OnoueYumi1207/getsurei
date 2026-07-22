@@ -393,6 +393,16 @@ tr.absent {
   max-width: 900px;
 }
 
+.shuttle-report-row {
+  line-height: 1.7;
+  margin: 6px 0;
+}
+
+.shuttle-report-row strong {
+  display: inline-block;
+  margin-right: 8px;
+}
+
 @media (max-width: 760px) {
   .app-shell {
     padding: 14px;

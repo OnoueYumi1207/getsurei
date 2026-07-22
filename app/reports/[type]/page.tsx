@@ -175,14 +175,16 @@ function ShuttlesReport({
                   : participant.returnShuttleId === shuttle.id,
               );
               return (
-                <div key={shuttle.id}>
-                  <h3>
+                <p key={shuttle.id} className="shuttle-report-row">
+                  <strong>
+                    【
                     {shuttle.name}
                     {shuttle.capacity ? `（定員${shuttle.capacity}名）` : ""}
                     {shuttle.note ? `（${shuttle.note}）` : ""}
-                  </h3>
-                  <p>{users.map((user) => user.name).join("、") || "0"}</p>
-                </div>
+                    】
+                  </strong>
+                  {users.map((user) => user.name).join("、") || "0"}
+                </p>
               );
             })}
         </section>

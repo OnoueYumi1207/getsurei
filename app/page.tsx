@@ -92,6 +92,7 @@ export default function Home() {
   const [form, setForm] = useState(blankForm);
   const [message, setMessage] = useState("");
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const otherRoleInputRef = useRef<HTMLInputElement>(null);
 
   async function loadData(nextEventId?: number | null) {
     const response = await fetch("/api/app", { cache: "no-store" });
@@ -486,11 +487,18 @@ export default function Home() {
                           <input
                             type="checkbox"
                             checked={checked}
-                            onChange={(event) => toggleRole(event.target.checked)}
+                            onChange={(event) => {
+                              const isChecked = event.target.checked;
+                              toggleRole(isChecked);
+                              if (isChecked) {
+                                window.setTimeout(() => otherRoleInputRef.current?.focus(), 0);
+                              }
+                            }}
                           />
                           その他（
                         </label>
                         <input
+                          ref={otherRoleInputRef}
                           aria-label="その他の担当内容"
                           placeholder="記入欄"
                           value={form.otherRoleText}

@@ -61,8 +61,8 @@ const SHUTTLES = [
   ["outbound", "北本駅8:20", 2, null],
   ["outbound", "鴻巣駅8:40", null, "スタッフ"],
   ["outbound", "鴻巣駅10:00", null, "一般優先"],
-  ["return", "早便", null, null],
-  ["return", "通常", null, null],
+  ["return", "早便(13:40頃)", null, null],
+  ["return", "通常(14:40頃)", null, null],
   ["return", "最終", null, null],
 ] as const;
 
@@ -141,6 +141,8 @@ export async function initialize() {
         d1.prepare("INSERT INTO shuttle_options (direction, name, capacity, note, sort_order, is_active) VALUES (?, ?, ?, ?, ?, 1)").bind(direction, name, capacity, note, index + 1),
       ),
     );
+  } else {
+    await syncShuttles(d1);
   }
   for (const [eventDate, monthLabel] of PRESET_EVENTS) {
     const existing = await d1
@@ -200,6 +202,26 @@ async function syncRoles(d1: D1Database) {
     .prepare(`UPDATE roles SET is_active = 0 WHERE name NOT IN (${placeholders})`)
     .bind(...ROLE_NAMES)
     .run();
+}
+
+async function syncShuttles(d1: D1Database) {
+  for (const [index, [direction, name, capacity, note]] of SHUTTLES.entries()) {
+    const existing = await d1
+      .prepare("SELECT id FROM shuttle_options WHERE direction = ? AND sort_order = ?")
+      .bind(direction, index + 1)
+      .first<{ id: number }>();
+    if (existing) {
+      await d1
+        .prepare("UPDATE shuttle_options SET name = ?, capacity = ?, note = ?, is_active = 1 WHERE id = ?")
+        .bind(name, capacity, note, existing.id)
+        .run();
+    } else {
+      await d1
+        .prepare("INSERT INTO shuttle_options (direction, name, capacity, note, sort_order, is_active) VALUES (?, ?, ?, ?, ?, 1)")
+        .bind(direction, name, capacity, note, index + 1)
+        .run();
+    }
+  }
 }
 
 export async function appData() {
