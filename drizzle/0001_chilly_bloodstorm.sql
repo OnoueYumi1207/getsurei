@@ -1,0 +1,1 @@
+ALTER TABLE `participants` ADD `other_role_text` text;

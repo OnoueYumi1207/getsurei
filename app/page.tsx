@@ -29,6 +29,7 @@ type Participant = {
   rideDriverParticipantId: number | null;
   outboundShuttleId: number | null;
   returnShuttleId: number | null;
+  otherRoleText: string;
   roles: number[];
   carrierSchedule: {
     outboundDate: string;
@@ -55,6 +56,7 @@ const blankForm = {
   rideDriverParticipantId: null as number | null,
   outboundShuttleId: null as number | null,
   returnShuttleId: null as number | null,
+  otherRoleText: "",
   roles: [] as number[],
   carrierSchedule: {
     outboundDate: "",
@@ -124,6 +126,7 @@ export default function Home() {
         rideDriverParticipantId: participant.rideDriverParticipantId,
         outboundShuttleId: participant.outboundShuttleId,
         returnShuttleId: participant.returnShuttleId,
+        otherRoleText: participant.otherRoleText ?? "",
         roles: participant.roles,
         carrierSchedule:
           participant.carrierSchedule ?? blankForm.carrierSchedule,
@@ -366,6 +369,17 @@ export default function Home() {
                 ))}
               </div>
             </fieldset>
+            {form.roles.some((roleId) => roleName(roleId) === "その他") && (
+              <label className="other-role-field">
+                その他の担当内容
+                <input
+                  value={form.otherRoleText}
+                  onChange={(event) =>
+                    setForm({ ...form, otherRoleText: event.target.value })
+                  }
+                />
+              </label>
+            )}
             {form.roles.some((roleId) => roleName(roleId) === "運搬") && (
               <fieldset>
                 <legend>運搬日時</legend>
@@ -550,10 +564,9 @@ function ParticipantTable({
               <td>{participant.isAbsent ? "欠席" : ""}</td>
               <td>{participant.name}</td>
               <td>
-                {participant.roles
-                  .map((id) => data.roles.find((role) => role.id === id)?.name)
-                  .filter(Boolean)
-                  .join("、") || <span className="pending">未定</span>}
+                {roleLabels(data, participant).join("、") || (
+                  <span className="pending">未定</span>
+                )}
               </td>
               <td>{participant.sendanTeaCount}</td>
               <td>{transportLabel(participant, data)}</td>
@@ -627,7 +640,7 @@ function Summary({ data, event }: { data: AppData; event: EventRecord }) {
               {shuttle.capacity && users.length > shuttle.capacity && (
                 <p className="warning">定員を超えています。運営側で調整してください。</p>
               )}
-              <p>{users.map((user) => user.name).join("、") || "利用者なし"}</p>
+              <p>{users.map((user) => user.name).join("、") || "0"}</p>
             </details>
           );
         })}
@@ -642,7 +655,13 @@ function Summary({ data, event }: { data: AppData; event: EventRecord }) {
             <div key={role.id} className="role-row">
               <strong>{role.name}</strong>
               <span className={members.length ? "" : "pending"}>
-                {members.map((member) => member.name).join("、") || "未定"}
+                {members
+                  .map((member) =>
+                    role.name === "その他" && member.otherRoleText
+                      ? `${member.name}（${member.otherRoleText}）`
+                      : member.name,
+                  )
+                  .join("、") || "未定"}
               </span>
             </div>
           );
@@ -650,6 +669,18 @@ function Summary({ data, event }: { data: AppData; event: EventRecord }) {
       </div>
     </section>
   );
+}
+
+function roleLabels(data: AppData, participant: Participant) {
+  return participant.roles
+    .map((id) => {
+      const name = data.roles.find((role) => role.id === id)?.name;
+      if (name === "その他" && participant.otherRoleText) {
+        return `その他（${participant.otherRoleText}）`;
+      }
+      return name;
+    })
+    .filter((name): name is string => Boolean(name));
 }
 
 function ShuttleSelect({

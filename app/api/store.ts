@@ -20,6 +20,8 @@ const ROLE_NAMES = [
   "金剛甘露祈祷（秡い）",
   "甘露壇",
   "泉珠卜占",
+  "その他",
+  "フリー",
 ];
 
 const GROUPS = [
@@ -56,6 +58,7 @@ export type ParticipantPayload = {
   rideDriverParticipantId: number | null;
   outboundShuttleId: number | null;
   returnShuttleId: number | null;
+  otherRoleText: string;
   roles: number[];
   carrierSchedule: {
     outboundDate: string;
@@ -81,6 +84,14 @@ export async function initialize() {
     d1.prepare("CREATE TABLE IF NOT EXISTS participant_roles (id INTEGER PRIMARY KEY AUTOINCREMENT, participant_id INTEGER NOT NULL, role_id INTEGER NOT NULL)"),
     d1.prepare("CREATE TABLE IF NOT EXISTS carrier_schedules (id INTEGER PRIMARY KEY AUTOINCREMENT, participant_id INTEGER NOT NULL UNIQUE, outbound_date TEXT, outbound_time TEXT, return_date TEXT, return_time TEXT)"),
   ]);
+  await d1
+    .prepare("ALTER TABLE participants ADD COLUMN other_role_text TEXT")
+    .run()
+    .catch((error) => {
+      if (!(error instanceof Error) || !error.message.includes("duplicate column")) {
+        throw error;
+      }
+    });
 
   const counts = await d1.batch([
     d1.prepare("SELECT COUNT(*) AS count FROM groups"),
@@ -102,6 +113,22 @@ export async function initialize() {
         d1.prepare("INSERT INTO roles (name, sort_order, is_active) VALUES (?, ?, 1)").bind(name, index + 1),
       ),
     );
+  } else {
+    for (const name of ROLE_NAMES) {
+      const existing = await d1
+        .prepare("SELECT id FROM roles WHERE name = ?")
+        .bind(name)
+        .first();
+      if (!existing) {
+        const max = await d1
+          .prepare("SELECT COALESCE(MAX(sort_order), 0) AS maxSort FROM roles")
+          .first<{ maxSort: number }>();
+        await d1
+          .prepare("INSERT INTO roles (name, sort_order, is_active) VALUES (?, ?, 1)")
+          .bind(name, (max?.maxSort ?? 0) + 1)
+          .run();
+      }
+    }
   }
   if ((counts[2].results?.[0]?.count as number) === 0) {
     await d1.batch(
@@ -128,7 +155,7 @@ export async function appData() {
       d1.prepare("SELECT id, name, sort_order AS sortOrder FROM roles WHERE is_active = 1 ORDER BY sort_order"),
       d1.prepare("SELECT id, direction, name, capacity, note, sort_order AS sortOrder FROM shuttle_options WHERE is_active = 1 ORDER BY direction, sort_order"),
       d1.prepare("SELECT id, name, event_date AS eventDate, month_label AS monthLabel FROM events ORDER BY event_date DESC"),
-      d1.prepare("SELECT id, event_id AS eventId, group_id AS groupId, name, is_absent AS isAbsent, sendan_tea_count AS sendanTeaCount, transport_type AS transportType, ride_driver_participant_id AS rideDriverParticipantId, outbound_shuttle_id AS outboundShuttleId, return_shuttle_id AS returnShuttleId, created_at AS createdAt, updated_at AS updatedAt FROM participants ORDER BY group_id, name"),
+      d1.prepare("SELECT id, event_id AS eventId, group_id AS groupId, name, is_absent AS isAbsent, sendan_tea_count AS sendanTeaCount, transport_type AS transportType, ride_driver_participant_id AS rideDriverParticipantId, outbound_shuttle_id AS outboundShuttleId, return_shuttle_id AS returnShuttleId, other_role_text AS otherRoleText, created_at AS createdAt, updated_at AS updatedAt FROM participants ORDER BY group_id, name"),
       d1.prepare("SELECT participant_id AS participantId, role_id AS roleId FROM participant_roles"),
       d1.prepare("SELECT participant_id AS participantId, outbound_date AS outboundDate, outbound_time AS outboundTime, return_date AS returnDate, return_time AS returnTime FROM carrier_schedules"),
     ]);
@@ -158,6 +185,7 @@ export async function appData() {
     participants: (participants.results ?? []).map((participant) => ({
       ...participant,
       isAbsent: Boolean(participant.isAbsent),
+      otherRoleText: participant.otherRoleText ?? "",
       roles: roleMap.get(participant.id as number) ?? [],
       carrierSchedule: normalizeSchedule(scheduleMap.get(participant.id as number)),
     })),
@@ -190,13 +218,13 @@ export async function saveParticipant(payload: ParticipantPayload) {
   let participantId = clean.id;
   if (participantId) {
     await d1
-      .prepare("UPDATE participants SET name = ?, is_absent = ?, sendan_tea_count = ?, transport_type = ?, ride_driver_participant_id = ?, outbound_shuttle_id = ?, return_shuttle_id = ?, updated_at = ? WHERE id = ? AND event_id = ? AND group_id = ?")
-      .bind(clean.name, clean.isAbsent ? 1 : 0, clean.sendanTeaCount, clean.transportType, clean.rideDriverParticipantId, clean.outboundShuttleId, clean.returnShuttleId, now, participantId, clean.eventId, clean.groupId)
+      .prepare("UPDATE participants SET name = ?, is_absent = ?, sendan_tea_count = ?, transport_type = ?, ride_driver_participant_id = ?, outbound_shuttle_id = ?, return_shuttle_id = ?, other_role_text = ?, updated_at = ? WHERE id = ? AND event_id = ? AND group_id = ?")
+      .bind(clean.name, clean.isAbsent ? 1 : 0, clean.sendanTeaCount, clean.transportType, clean.rideDriverParticipantId, clean.outboundShuttleId, clean.returnShuttleId, clean.otherRoleText, now, participantId, clean.eventId, clean.groupId)
       .run();
   } else {
     const result = await d1
-      .prepare("INSERT INTO participants (event_id, group_id, name, is_absent, sendan_tea_count, transport_type, ride_driver_participant_id, outbound_shuttle_id, return_shuttle_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-      .bind(clean.eventId, clean.groupId, clean.name, clean.isAbsent ? 1 : 0, clean.sendanTeaCount, clean.transportType, clean.rideDriverParticipantId, clean.outboundShuttleId, clean.returnShuttleId, now, now)
+      .prepare("INSERT INTO participants (event_id, group_id, name, is_absent, sendan_tea_count, transport_type, ride_driver_participant_id, outbound_shuttle_id, return_shuttle_id, other_role_text, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+      .bind(clean.eventId, clean.groupId, clean.name, clean.isAbsent ? 1 : 0, clean.sendanTeaCount, clean.transportType, clean.rideDriverParticipantId, clean.outboundShuttleId, clean.returnShuttleId, clean.otherRoleText, now, now)
       .run();
     participantId = result.meta.last_row_id;
   }
@@ -242,14 +270,14 @@ export async function createEventFromPrevious(eventDate: string) {
 
   if (previous) {
     const source = await d1
-      .prepare("SELECT id, group_id AS groupId, name, sendan_tea_count AS sendanTeaCount, transport_type AS transportType, ride_driver_participant_id AS rideDriverParticipantId, outbound_shuttle_id AS outboundShuttleId, return_shuttle_id AS returnShuttleId FROM participants WHERE event_id = ? ORDER BY id")
+      .prepare("SELECT id, group_id AS groupId, name, sendan_tea_count AS sendanTeaCount, transport_type AS transportType, ride_driver_participant_id AS rideDriverParticipantId, outbound_shuttle_id AS outboundShuttleId, return_shuttle_id AS returnShuttleId, other_role_text AS otherRoleText FROM participants WHERE event_id = ? ORDER BY id")
       .bind(previous.id)
       .all<Record<string, unknown>>();
     const oldToNew = new Map<number, number>();
     for (const participant of source.results ?? []) {
       const result = await d1
-        .prepare("INSERT INTO participants (event_id, group_id, name, is_absent, sendan_tea_count, transport_type, ride_driver_participant_id, outbound_shuttle_id, return_shuttle_id, created_at, updated_at) VALUES (?, ?, ?, 0, ?, ?, NULL, ?, ?, ?, ?)")
-        .bind(newEventId, participant.groupId, participant.name, participant.sendanTeaCount, participant.transportType, participant.outboundShuttleId, participant.returnShuttleId, now, now)
+        .prepare("INSERT INTO participants (event_id, group_id, name, is_absent, sendan_tea_count, transport_type, ride_driver_participant_id, outbound_shuttle_id, return_shuttle_id, other_role_text, created_at, updated_at) VALUES (?, ?, ?, 0, ?, ?, NULL, ?, ?, ?, ?, ?)")
+        .bind(newEventId, participant.groupId, participant.name, participant.sendanTeaCount, participant.transportType, participant.outboundShuttleId, participant.returnShuttleId, participant.otherRoleText ?? "", now, now)
         .run();
       oldToNew.set(participant.id as number, result.meta.last_row_id);
     }
@@ -289,6 +317,7 @@ function normalizePayload(payload: ParticipantPayload) {
       payload.transportType === "shuttle" ? payload.outboundShuttleId : null,
     returnShuttleId:
       payload.transportType === "shuttle" ? payload.returnShuttleId : null,
+    otherRoleText: payload.otherRoleText?.trim() ?? "",
     roles: Array.from(new Set(payload.roles.map(Number).filter(Boolean))),
   };
 }

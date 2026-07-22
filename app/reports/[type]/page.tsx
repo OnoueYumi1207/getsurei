@@ -1,4 +1,5 @@
 import { appData } from "../../api/store";
+import { PrintButton } from "./PrintButton";
 
 type Params = Promise<{ type: "participants" | "roles" | "shuttles" }>;
 type SearchParams = Promise<{ eventId?: string }>;
@@ -20,6 +21,7 @@ type ReportParticipant = {
   rideDriverParticipantId: number | null;
   outboundShuttleId: number | null;
   returnShuttleId: number | null;
+  otherRoleText: string;
   roles: number[];
   carrierSchedule: {
     outboundDate: string;
@@ -56,7 +58,7 @@ export default async function ReportPage({
   return (
     <main className="report-page">
       <div className="print-actions">
-        <button onClickScript="window.print()">PDF出力</button>
+        <PrintButton />
       </div>
       <section className="report">
         <h1>{event.monthLabel} 明王招福護摩供</h1>
@@ -65,7 +67,6 @@ export default async function ReportPage({
         {type === "roles" && <RolesReport data={data} active={active} />}
         {type === "shuttles" && <ShuttlesReport data={data} active={active} />}
       </section>
-      <script dangerouslySetInnerHTML={{ __html: "document.querySelector('[onClickScript]')?.addEventListener('click',()=>window.print());" }} />
     </main>
   );
 }
@@ -95,7 +96,7 @@ function ParticipantsReport({
           {active.map((participant) => (
             <tr key={participant.id}>
               <td>{participant.name}</td>
-              <td>{roleText(data, participant.roles)}</td>
+              <td>{roleText(data, participant)}</td>
               <td>{participant.sendanTeaCount}</td>
               <td>{transportText(data, participant)}</td>
               <td>{routeText(data, participant, "outbound")}</td>
@@ -131,7 +132,9 @@ function RolesReport({
                         .map((member) =>
                           role.name === "運搬" && member.carrierSchedule
                             ? `${member.name}（往路 ${scheduleText(member.carrierSchedule.outboundDate, member.carrierSchedule.outboundTime)} / 復路 ${scheduleText(member.carrierSchedule.returnDate, member.carrierSchedule.returnTime)}）`
-                            : member.name,
+                            : role.name === "その他" && member.otherRoleText
+                              ? `${member.name}（${member.otherRoleText}）`
+                              : member.name,
                         )
                         .join("、")
                     : "未定"}
@@ -173,7 +176,7 @@ function ShuttlesReport({
                     {shuttle.capacity ? `（定員${shuttle.capacity}名）` : ""}
                     {shuttle.note ? `（${shuttle.note}）` : ""}
                   </h3>
-                  <p>{users.map((user) => user.name).join("、") || "利用者なし"}</p>
+                  <p>{users.map((user) => user.name).join("、") || "0"}</p>
                 </div>
               );
             })}
@@ -183,10 +186,16 @@ function ShuttlesReport({
   );
 }
 
-function roleText(data: ReportData, roleIds: number[]) {
+function roleText(data: ReportData, participant: ReportParticipant) {
   return (
-    roleIds
-      .map((id) => data.roles.find((role) => role.id === id)?.name)
+    participant.roles
+      .map((id) => {
+        const name = data.roles.find((role) => role.id === id)?.name;
+        if (name === "その他" && participant.otherRoleText) {
+          return `その他（${participant.otherRoleText}）`;
+        }
+        return name;
+      })
       .filter(Boolean)
       .join("、") || "未定"
   );
