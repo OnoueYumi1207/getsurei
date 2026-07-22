@@ -22,6 +22,7 @@ const ROLE_NAMES = [
   "泉珠卜占",
   "その他",
   "フリー",
+  "膳食",
 ];
 
 const GROUPS = [
