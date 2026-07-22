@@ -178,6 +178,28 @@ export default function Home() {
     await loadData(payload.event.id);
   }
 
+  async function deleteParticipant(participant: Participant) {
+    if (!selectedEvent || !selectedGroup) return;
+    const confirmed = window.confirm(`${participant.name}さんを削除します。よろしいですか？`);
+    if (!confirmed) return;
+    const response = await fetch("/api/participants", {
+      method: "DELETE",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        id: participant.id,
+        eventId: selectedEvent.id,
+        groupId: selectedGroup.id,
+      }),
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      setMessage(payload.error ?? "削除できませんでした。");
+      return;
+    }
+    setMessage("削除しました。");
+    await loadData(selectedEvent.id);
+  }
+
   function roleName(id: number) {
     return data?.roles.find((role) => role.id === id)?.name ?? "";
   }
@@ -298,6 +320,7 @@ export default function Home() {
             data={data}
             canEdit={canEdit}
             onEdit={startEdit}
+            onDelete={deleteParticipant}
           />
           <p className="updated">
             最終更新：{latestUpdatedAt(participants)}
@@ -537,11 +560,13 @@ function ParticipantTable({
   data,
   canEdit,
   onEdit,
+  onDelete,
 }: {
   participants: Participant[];
   data: AppData;
   canEdit: boolean;
   onEdit: (participant: Participant) => void;
+  onDelete: (participant: Participant) => void;
 }) {
   return (
     <div className="table-wrap">
@@ -555,7 +580,7 @@ function ParticipantTable({
             <th>移動手段</th>
             <th>往路</th>
             <th>復路</th>
-            {canEdit && <th>編集</th>}
+            {canEdit && <th>操作</th>}
           </tr>
         </thead>
         <tbody>
@@ -573,8 +598,14 @@ function ParticipantTable({
               <td>{routeLabel(participant, data, "outbound")}</td>
               <td>{routeLabel(participant, data, "return")}</td>
               {canEdit && (
-                <td>
+                <td className="row-actions">
                   <button onClick={() => onEdit(participant)}>編集</button>
+                  <button
+                    className="danger"
+                    onClick={() => onDelete(participant)}
+                  >
+                    削除
+                  </button>
                 </td>
               )}
             </tr>

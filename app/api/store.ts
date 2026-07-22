@@ -246,6 +246,34 @@ export async function saveParticipant(payload: ParticipantPayload) {
   }
 }
 
+export async function deleteParticipant(payload: {
+  id?: number;
+  eventId?: number;
+  groupId?: number;
+}) {
+  const id = Number(payload.id);
+  const eventId = Number(payload.eventId);
+  const groupId = Number(payload.groupId);
+  if (!id || !eventId || !groupId) {
+    throw new Error("削除対象が正しくありません。");
+  }
+  await assertCanEdit(groupId);
+  const d1 = db();
+  const existing = await d1
+    .prepare("SELECT id FROM participants WHERE id = ? AND event_id = ? AND group_id = ?")
+    .bind(id, eventId, groupId)
+    .first();
+  if (!existing) {
+    throw new Error("削除対象が見つかりません。");
+  }
+  await d1.batch([
+    d1.prepare("DELETE FROM participant_roles WHERE participant_id = ?").bind(id),
+    d1.prepare("DELETE FROM carrier_schedules WHERE participant_id = ?").bind(id),
+    d1.prepare("UPDATE participants SET ride_driver_participant_id = NULL WHERE ride_driver_participant_id = ? AND event_id = ?").bind(id, eventId),
+    d1.prepare("DELETE FROM participants WHERE id = ? AND event_id = ? AND group_id = ?").bind(id, eventId, groupId),
+  ]);
+}
+
 export async function createEventFromPrevious(eventDate: string) {
   await initialize();
   const now = new Date().toISOString();

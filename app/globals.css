@@ -61,6 +61,11 @@ button.primary,
   color: #ffffff;
 }
 
+button.danger {
+  border-color: var(--pending);
+  color: var(--pending);
+}
+
 input,
 select {
   width: 100%;
@@ -189,6 +194,12 @@ legend {
 .table-wrap {
   width: 100%;
   overflow-x: auto;
+}
+
+.row-actions {
+  display: flex;
+  gap: 8px;
+  min-width: 132px;
 }
 
 table {
