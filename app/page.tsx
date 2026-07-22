@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-type Group = { id: number; name: string; editorName: string };
+type Group = { id: number; name: string; editorName: string; editorNames: string[] };
 type Role = { id: number; name: string; sortOrder: number };
 type Shuttle = {
   id: number;
@@ -107,7 +107,9 @@ export default function Home() {
   );
   const canEdit =
     Boolean(data?.user && selectedGroup) &&
-    data?.user?.displayName === selectedGroup?.editorName;
+    Boolean(
+      selectedGroup?.editorNames.includes(data?.user?.displayName ?? ""),
+    );
 
   function startEdit(participant: Participant | "new") {
     setEditing(participant);
