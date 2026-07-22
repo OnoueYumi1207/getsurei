@@ -65,7 +65,7 @@ export default async function ReportPage({
       </div>
       <section className="report">
         <h1>{event.monthLabel} 明王招福護摩供</h1>
-        <p>開催日：{formatDate(event.eventDate)}</p>
+        <p>挙行日：{formatDate(event.eventDate)}</p>
         {type === "participants" && <ParticipantsReport data={data} active={active} />}
         {type === "roles" && <RolesReport data={data} active={active} />}
         {type === "shuttles" && <ShuttlesReport data={data} active={active} />}
