@@ -300,6 +300,13 @@ tr.absent {
   width: auto;
 }
 
+.other-role-control {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: auto minmax(120px, 1fr) auto;
+}
+
 .warning {
   color: var(--warning);
   font-size: 13px;

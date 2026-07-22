@@ -409,36 +409,52 @@ export default function Home() {
             <fieldset>
               <legend>担当</legend>
               <div className="checkbox-grid">
-                {data.roles.map((role) => (
-                  <label key={role.id} className="checkline">
-                    <input
-                      type="checkbox"
-                      checked={form.roles.includes(role.id)}
-                      onChange={(event) => {
-                        setForm({
-                          ...form,
-                          roles: event.target.checked
-                            ? [...form.roles, role.id]
-                            : form.roles.filter((id) => id !== role.id),
-                        });
-                      }}
-                    />
-                    {role.name}
-                  </label>
-                ))}
+                {data.roles.map((role) => {
+                  const checked = form.roles.includes(role.id);
+                  const toggleRole = (isChecked: boolean) => {
+                    setForm({
+                      ...form,
+                      roles: isChecked
+                        ? [...form.roles, role.id]
+                        : form.roles.filter((id) => id !== role.id),
+                    });
+                  };
+                  if (role.name === "その他") {
+                    return (
+                      <div key={role.id} className="other-role-control">
+                        <label className="checkline">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(event) => toggleRole(event.target.checked)}
+                          />
+                          その他（
+                        </label>
+                        <input
+                          aria-label="その他の担当内容"
+                          placeholder="記入欄"
+                          value={form.otherRoleText}
+                          onChange={(event) =>
+                            setForm({ ...form, otherRoleText: event.target.value })
+                          }
+                        />
+                        <span>）</span>
+                      </div>
+                    );
+                  }
+                  return (
+                    <label key={role.id} className="checkline">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(event) => toggleRole(event.target.checked)}
+                      />
+                      {role.name}
+                    </label>
+                  );
+                })}
               </div>
             </fieldset>
-            {form.roles.some((roleId) => roleName(roleId) === "その他") && (
-              <label className="other-role-field">
-                その他の担当内容
-                <input
-                  value={form.otherRoleText}
-                  onChange={(event) =>
-                    setForm({ ...form, otherRoleText: event.target.value })
-                  }
-                />
-              </label>
-            )}
             {form.roles.some((roleId) => roleName(roleId) === "運搬") && (
               <fieldset>
                 <legend>運搬日時</legend>

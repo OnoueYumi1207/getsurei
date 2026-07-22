@@ -6,24 +6,31 @@ const ROLE_NAMES = [
   "主弁",
   "MC",
   "儀式",
-  "大黒天恵比寿依り代",
+  "恵比寿大黒天依り代",
   "ありが鯛・仔ありが鯛",
-  "道具販売",
+  "銀行",
   "祈願会",
+  "道具販売",
   "五路財神",
-  "案内所",
+  "太明星",
+  "受付",
   "仙丹茶",
-  "感謝の誠",
-  "設営",
-  "泉珠銀行",
   "金剛甘露祈祷（主弁）",
   "金剛甘露祈祷（秡い）",
   "甘露壇",
-  "泉珠卜占",
-  "その他",
-  "フリー",
   "膳食",
+  "泉珠卜占",
+  "送迎調整",
+  "送迎ドライバー",
+  "フリー",
+  "その他",
 ];
+
+const ROLE_RENAMES = new Map([
+  ["大黒天恵比寿依り代", "恵比寿大黒天依り代"],
+  ["泉珠銀行", "銀行"],
+  ["案内所", "受付"],
+]);
 
 const GROUPS = [
   ["大江戸", "守屋正裕"],
@@ -124,21 +131,7 @@ export async function initialize() {
       ),
     );
   } else {
-    for (const name of ROLE_NAMES) {
-      const existing = await d1
-        .prepare("SELECT id FROM roles WHERE name = ?")
-        .bind(name)
-        .first();
-      if (!existing) {
-        const max = await d1
-          .prepare("SELECT COALESCE(MAX(sort_order), 0) AS maxSort FROM roles")
-          .first<{ maxSort: number }>();
-        await d1
-          .prepare("INSERT INTO roles (name, sort_order, is_active) VALUES (?, ?, 1)")
-          .bind(name, (max?.maxSort ?? 0) + 1)
-          .run();
-      }
-    }
+    await syncRoles(d1);
   }
   if ((counts[2].results?.[0]?.count as number) === 0) {
     await d1.batch(
@@ -160,6 +153,51 @@ export async function initialize() {
         .run();
     }
   }
+}
+
+async function syncRoles(d1: D1Database) {
+  for (const [from, to] of ROLE_RENAMES) {
+    const oldRole = await d1
+      .prepare("SELECT id FROM roles WHERE name = ?")
+      .bind(from)
+      .first<{ id: number }>();
+    const newRole = await d1
+      .prepare("SELECT id FROM roles WHERE name = ?")
+      .bind(to)
+      .first<{ id: number }>();
+    if (oldRole && newRole) {
+      await d1.batch([
+        d1.prepare("UPDATE participant_roles SET role_id = ? WHERE role_id = ?").bind(newRole.id, oldRole.id),
+        d1.prepare("DELETE FROM roles WHERE id = ?").bind(oldRole.id),
+      ]);
+    } else if (oldRole) {
+      await d1.prepare("UPDATE roles SET name = ? WHERE id = ?").bind(to, oldRole.id).run();
+    }
+  }
+
+  for (const [index, name] of ROLE_NAMES.entries()) {
+    const existing = await d1
+      .prepare("SELECT id FROM roles WHERE name = ?")
+      .bind(name)
+      .first<{ id: number }>();
+    if (existing) {
+      await d1
+        .prepare("UPDATE roles SET sort_order = ?, is_active = 1 WHERE id = ?")
+        .bind(index + 1, existing.id)
+        .run();
+    } else {
+      await d1
+        .prepare("INSERT INTO roles (name, sort_order, is_active) VALUES (?, ?, 1)")
+        .bind(name, index + 1)
+        .run();
+    }
+  }
+
+  const placeholders = ROLE_NAMES.map(() => "?").join(", ");
+  await d1
+    .prepare(`UPDATE roles SET is_active = 0 WHERE name NOT IN (${placeholders})`)
+    .bind(...ROLE_NAMES)
+    .run();
 }
 
 export async function appData() {
