@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type Group = { id: number; name: string; editorName: string; editorNames: string[] };
 type Role = { id: number; name: string; sortOrder: number };
@@ -74,6 +74,7 @@ export default function Home() {
   const [editing, setEditing] = useState<Participant | "new" | null>(null);
   const [form, setForm] = useState(blankForm);
   const [message, setMessage] = useState("");
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   async function loadData(nextEventId = selectedEventId) {
     const response = await fetch("/api/app", { cache: "no-store" });
@@ -92,6 +93,12 @@ export default function Home() {
     return () => window.clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (editing) {
+      window.setTimeout(() => nameInputRef.current?.focus(), 0);
+    }
+  }, [editing]);
 
   const selectedEvent = data?.events.find((event) => event.id === selectedEventId);
   const selectedGroup =
@@ -375,6 +382,7 @@ export default function Home() {
               <label>
                 氏名
                 <input
+                  ref={nameInputRef}
                   value={form.name}
                   onChange={(event) =>
                     setForm({ ...form, name: event.target.value })
