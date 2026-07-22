@@ -36,7 +36,7 @@ const GROUPS = [
   ["山梨", "細田倫宏"],
 ];
 
-const EXTRA_GROUP_EDITORS = new Map([["山梨", ["尾ノ上裕美"]]]);
+const ADMIN_EDITORS = ["尾ノ上裕美"];
 
 const SHUTTLES = [
   ["outbound", "北本駅8:20", 2, null],
@@ -176,7 +176,7 @@ export async function appData() {
       ...group,
       editorNames: [
         group.editorName as string,
-        ...(EXTRA_GROUP_EDITORS.get(group.name as string) ?? []),
+        ...ADMIN_EDITORS,
       ],
     })),
     roles: roles.results ?? [],
@@ -202,7 +202,7 @@ export async function assertCanEdit(groupId: number) {
     .first<{ name: string; editorName: string }>();
   const editors = [
     group?.editorName,
-    ...(EXTRA_GROUP_EDITORS.get(group?.name ?? "") ?? []),
+    ...ADMIN_EDITORS,
   ];
   if (!group || !editors.includes(user.displayName)) {
     throw new Error("この伝道会を編集する権限がありません。");
