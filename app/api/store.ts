@@ -66,6 +66,8 @@ const SHUTTLES = [
   ["return", "最終", null, null],
 ] as const;
 
+let initializationPromise: Promise<void> | null = null;
+
 export type ParticipantPayload = {
   id?: number;
   eventId: number;
@@ -93,6 +95,15 @@ export function db() {
 }
 
 export async function initialize() {
+  if (initializationPromise) return initializationPromise;
+  initializationPromise = runInitialize().catch((error) => {
+    initializationPromise = null;
+    throw error;
+  });
+  return initializationPromise;
+}
+
+async function runInitialize() {
   const d1 = db();
   await d1.batch([
     d1.prepare("CREATE TABLE IF NOT EXISTS events (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, event_date TEXT NOT NULL, month_label TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)"),

@@ -91,48 +91,52 @@ export default function Home() {
   const [editing, setEditing] = useState<Participant | "new" | null>(null);
   const [form, setForm] = useState(blankForm);
   const [message, setMessage] = useState("");
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const otherRoleInputRef = useRef<HTMLInputElement>(null);
 
   async function loadData(nextEventId?: number | null) {
-    const response = await fetch("/api/app", { cache: "no-store" });
-    const payload = (await response.json()) as AppData;
-    setData(payload);
-    setSelectedEventId((current) => {
-      const requested = nextEventId ?? current;
-      if (requested && payload.events.some((event) => event.id === requested)) {
-        return requested;
-      }
-      const stored = readStoredEventId();
-      if (stored && payload.events.some((event) => event.id === stored)) {
-        return stored;
-      }
-      return payload.events[0]?.id ?? null;
-    });
-    setSelectedGroupId((current) => {
-      if (
-        current === "summary" ||
-        (current && payload.groups.some((group) => group.id === current))
-      ) {
-        return current;
-      }
-      const stored = readStoredGroupId();
-      if (
-        stored === "summary" ||
-        (stored && payload.groups.some((group) => group.id === stored))
-      ) {
-        return stored;
-      }
-      return payload.groups[0]?.id ?? null;
-    });
+    setIsRefreshing(true);
+    try {
+      const response = await fetch("/api/app", { cache: "no-store" });
+      const payload = (await response.json()) as AppData;
+      setData(payload);
+      setSelectedEventId((current) => {
+        const requested = nextEventId ?? current;
+        if (requested && payload.events.some((event) => event.id === requested)) {
+          return requested;
+        }
+        const stored = readStoredEventId();
+        if (stored && payload.events.some((event) => event.id === stored)) {
+          return stored;
+        }
+        return payload.events[0]?.id ?? null;
+      });
+      setSelectedGroupId((current) => {
+        if (
+          current === "summary" ||
+          (current && payload.groups.some((group) => group.id === current))
+        ) {
+          return current;
+        }
+        const stored = readStoredGroupId();
+        if (
+          stored === "summary" ||
+          (stored && payload.groups.some((group) => group.id === stored))
+        ) {
+          return stored;
+        }
+        return payload.groups[0]?.id ?? null;
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
   }
 
   useEffect(() => {
     // Initial API hydration is the source of truth for this client view.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadData();
-    const timer = window.setInterval(() => loadData(), 8000);
-    return () => window.clearInterval(timer);
   }, []);
 
   useEffect(() => {
@@ -295,7 +299,6 @@ export default function Home() {
       return;
     }
     setMessage(isAbsent ? "欠席にしました。" : "参加に戻しました。");
-    await loadData(selectedEvent.id);
   }
 
   function roleName(id: number) {
@@ -365,6 +368,9 @@ export default function Home() {
         </label>
         <button disabled={!data.isAdmin} onClick={copyFromPreviousMonth}>
           前月からコピー
+        </button>
+        <button disabled={isRefreshing} onClick={() => loadData(selectedEventId)}>
+          {isRefreshing ? "更新中" : "更新"}
         </button>
       </section>
       {!data.isAdmin && data.user && (
