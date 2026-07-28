@@ -527,9 +527,9 @@ export default function Home() {
               <h2>{editing === "new" ? "参加者を追加" : "参加者を編集"}</h2>
               <button onClick={() => setEditing(null)}>閉じる</button>
             </div>
-            <div className="form-grid">
+            <div className="form-grid participant-basic">
               <label>
-                氏名
+                参加者名
                 <input
                   ref={nameInputRef}
                   value={form.name}
@@ -538,16 +538,24 @@ export default function Home() {
                   }
                 />
               </label>
-              <label className="checkline">
-                <input
-                  type="checkbox"
-                  checked={form.isAbsent}
-                  onChange={(event) =>
-                    setForm({ ...form, isAbsent: event.target.checked })
-                  }
-                />
-                欠席
-              </label>
+              <div className="attendance-choice" aria-label="参加状態">
+                <label className="checkline">
+                  <input
+                    type="checkbox"
+                    checked={!form.isAbsent}
+                    onChange={() => setForm({ ...form, isAbsent: false })}
+                  />
+                  参加のみ
+                </label>
+                <label className="checkline">
+                  <input
+                    type="checkbox"
+                    checked={form.isAbsent}
+                    onChange={() => setForm({ ...form, isAbsent: true })}
+                  />
+                  欠席
+                </label>
+              </div>
               <label>
                 仙丹茶
                 <input
@@ -793,7 +801,7 @@ function ParticipantTable({
         <thead>
           <tr>
             <th>欠席</th>
-            <th>氏名</th>
+            <th>参加者名</th>
             <th>担当</th>
             <th>仙丹茶</th>
             <th>移動手段</th>

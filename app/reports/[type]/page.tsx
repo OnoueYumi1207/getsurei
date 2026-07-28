@@ -88,7 +88,7 @@ function ParticipantsReport({
         <thead>
           <tr>
             <th>伝道会</th>
-            <th>氏名</th>
+            <th>参加者名</th>
             <th>担当</th>
             <th>仙丹茶</th>
             <th>移動手段</th>

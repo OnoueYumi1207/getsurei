@@ -69,6 +69,12 @@ const SHUTTLES = [
 const INITIALIZATION_VERSION = "2026-07-28-speed-1";
 
 let initializationPromise: Promise<void> | null = null;
+let masterDataPromise: Promise<{
+  groups: Record<string, unknown>[];
+  roles: Record<string, unknown>[];
+  shuttles: Record<string, unknown>[];
+  events: Record<string, unknown>[];
+}> | null = null;
 
 export type ParticipantPayload = {
   id?: number;
@@ -251,17 +257,34 @@ async function syncShuttles(d1: D1Database) {
   }
 }
 
-export async function appData(requestedEventId?: number | null) {
+async function masterData() {
+  if (!masterDataPromise) {
+    masterDataPromise = loadMasterData();
+  }
+  return masterDataPromise;
+}
+
+async function loadMasterData() {
   await initialize();
   const d1 = db();
-  const [groups, roles, shuttles, events] =
-    await d1.batch([
-      d1.prepare("SELECT id, name, editor_name AS editorName FROM groups ORDER BY id"),
-      d1.prepare("SELECT id, name, sort_order AS sortOrder FROM roles WHERE is_active = 1 ORDER BY sort_order"),
-      d1.prepare("SELECT id, direction, name, capacity, note, sort_order AS sortOrder FROM shuttle_options WHERE is_active = 1 ORDER BY direction, sort_order"),
-      d1.prepare("SELECT id, name, event_date AS eventDate, month_label AS monthLabel FROM events ORDER BY event_date ASC"),
-    ]);
-  const eventRows = events.results ?? [];
+  const [groups, roles, shuttles, events] = await d1.batch([
+    d1.prepare("SELECT id, name, editor_name AS editorName FROM groups ORDER BY id"),
+    d1.prepare("SELECT id, name, sort_order AS sortOrder FROM roles WHERE is_active = 1 ORDER BY sort_order"),
+    d1.prepare("SELECT id, direction, name, capacity, note, sort_order AS sortOrder FROM shuttle_options WHERE is_active = 1 ORDER BY direction, sort_order"),
+    d1.prepare("SELECT id, name, event_date AS eventDate, month_label AS monthLabel FROM events ORDER BY event_date ASC"),
+  ]);
+  return {
+    groups: groups.results ?? [],
+    roles: roles.results ?? [],
+    shuttles: shuttles.results ?? [],
+    events: events.results ?? [],
+  };
+}
+
+export async function appData(requestedEventId?: number | null) {
+  const d1 = db();
+  const { groups, roles, shuttles, events } = await masterData();
+  const eventRows = events;
   const activeEventId =
     eventRows.find((event) => event.id === requestedEventId)?.id ??
     eventRows[0]?.id ??
@@ -287,15 +310,15 @@ export async function appData(requestedEventId?: number | null) {
   return {
     user,
     isAdmin: Boolean(user && ADMIN_EDITORS.includes(user.displayName)),
-    groups: (groups.results ?? []).map((group) => ({
+    groups: groups.map((group) => ({
       ...group,
       editorNames: [
         group.editorName as string,
         ...ADMIN_EDITORS,
       ],
     })),
-    roles: roles.results ?? [],
-    shuttles: shuttles.results ?? [],
+    roles,
+    shuttles,
     events: eventRows,
     participants: (participants.results ?? []).map((participant) => ({
       ...participant,
@@ -310,13 +333,10 @@ export async function appData(requestedEventId?: number | null) {
 export async function assertCanEdit(groupId: number) {
   const user = await getChatGPTUser();
   if (!user) throw new Error("編集するにはログインしてください。");
-  await initialize();
-  const group = await db()
-    .prepare("SELECT name, editor_name AS editorName FROM groups WHERE id = ?")
-    .bind(groupId)
-    .first<{ name: string; editorName: string }>();
+  const { groups } = await masterData();
+  const group = groups.find((item) => item.id === groupId);
   const editors = [
-    group?.editorName,
+    group?.editorName as string | undefined,
     ...ADMIN_EDITORS,
   ];
   if (!group || !editors.includes(user.displayName)) {

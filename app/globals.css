@@ -297,6 +297,18 @@ tr.absent {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.participant-basic {
+  align-items: end;
+  grid-template-columns: minmax(260px, 2fr) auto minmax(140px, 1fr);
+}
+
+.attendance-choice {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+  min-height: 42px;
+}
+
 .checkbox-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
