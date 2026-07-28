@@ -62,6 +62,7 @@ const selectedGroupStorageKey = "myoo-goma-selected-group-id";
 
 const blankForm = {
   name: "",
+  attendanceOnly: false,
   isAbsent: false,
   sendanTeaCount: 0,
   transportType: "none" as Participant["transportType"],
@@ -208,6 +209,7 @@ export default function Home() {
     } else {
       setForm({
         name: participant.name,
+        attendanceOnly: !participant.isAbsent && participant.roles.length === 0,
         isAbsent: participant.isAbsent,
         sendanTeaCount: participant.sendanTeaCount,
         transportType: participant.transportType,
@@ -225,6 +227,7 @@ export default function Home() {
   async function saveParticipant() {
     if (!selectedEvent || !selectedGroup || !form.name.trim()) return;
     const id = typeof editing === "object" && editing ? editing.id : undefined;
+    const selectedRoles = form.attendanceOnly ? [] : form.roles;
     const response = await fetch("/api/participants", {
       method: id ? "PUT" : "POST",
       headers: { "content-type": "application/json" },
@@ -233,8 +236,10 @@ export default function Home() {
         eventId: selectedEvent.id,
         groupId: selectedGroup.id,
         ...form,
+        isAbsent: form.attendanceOnly ? false : form.isAbsent,
+        roles: selectedRoles,
         rideDriverParticipantId: null,
-        carrierSchedule: form.roles.some((roleId) => roleName(roleId) === "運搬")
+        carrierSchedule: selectedRoles.some((roleId) => roleName(roleId) === "運搬")
           ? form.carrierSchedule
           : null,
       }),
@@ -254,7 +259,7 @@ export default function Home() {
       eventId: selectedEvent.id,
       groupId: selectedGroup.id,
       name: form.name.trim(),
-      isAbsent: form.isAbsent,
+      isAbsent: form.attendanceOnly ? false : form.isAbsent,
       sendanTeaCount: Math.max(0, Number(form.sendanTeaCount) || 0),
       transportType: form.transportType,
       rideDriverParticipantId: null,
@@ -263,8 +268,8 @@ export default function Home() {
       returnShuttleId:
         form.transportType === "shuttle" ? form.returnShuttleId : null,
       otherRoleText: form.otherRoleText.trim(),
-      roles: form.roles,
-      carrierSchedule: form.roles.some((roleId) => roleName(roleId) === "運搬")
+      roles: selectedRoles,
+      carrierSchedule: selectedRoles.some((roleId) => roleName(roleId) === "運搬")
         ? form.carrierSchedule
         : null,
       updatedAt: payload.updatedAt ?? new Date().toISOString(),
@@ -532,8 +537,15 @@ export default function Home() {
                 <label className="checkline">
                   <input
                     type="checkbox"
-                    checked={!form.isAbsent}
-                    onChange={() => setForm({ ...form, isAbsent: false })}
+                    checked={form.attendanceOnly}
+                    onChange={(event) =>
+                      setForm({
+                        ...form,
+                        attendanceOnly: event.target.checked,
+                        isAbsent: false,
+                        roles: event.target.checked ? [] : form.roles,
+                      })
+                    }
                   />
                   参加のみ
                 </label>
@@ -541,7 +553,13 @@ export default function Home() {
                   <input
                     type="checkbox"
                     checked={form.isAbsent}
-                    onChange={() => setForm({ ...form, isAbsent: true })}
+                    onChange={(event) =>
+                      setForm({
+                        ...form,
+                        attendanceOnly: false,
+                        isAbsent: event.target.checked,
+                      })
+                    }
                   />
                   欠席
                 </label>
@@ -569,6 +587,8 @@ export default function Home() {
                   const toggleRole = (isChecked: boolean) => {
                     setForm({
                       ...form,
+                      attendanceOnly: isChecked ? false : form.attendanceOnly,
+                      isAbsent: isChecked ? false : form.isAbsent,
                       roles: isChecked
                         ? [...form.roles, role.id]
                         : form.roles.filter((id) => id !== role.id),
