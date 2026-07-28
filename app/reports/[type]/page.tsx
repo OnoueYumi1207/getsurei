@@ -82,9 +82,48 @@ function ParticipantsReport({
   data: ReportData;
   active: ReportParticipant[];
 }) {
+  const grouped = groupedParticipants(data, active);
+  const totalStats = participantStats(active);
   return (
     <>
       <h2>参加者名簿</h2>
+      <div className="report-stats">
+        <div>
+          <span>総参加人数</span>
+          <strong>{totalStats.participants}名</strong>
+        </div>
+        <div>
+          <span>自家用車</span>
+          <strong>{totalStats.cars}台</strong>
+        </div>
+        <div>
+          <span>仙丹茶</span>
+          <strong>{totalStats.sendanTea}本</strong>
+        </div>
+      </div>
+      <table className="group-stats-table">
+        <thead>
+          <tr>
+            <th>伝道会</th>
+            <th>参加人数</th>
+            <th>車</th>
+            <th>仙丹茶</th>
+          </tr>
+        </thead>
+        <tbody>
+          {grouped.map(({ group, participants }) => {
+            const stats = participantStats(participants);
+            return (
+              <tr key={group.id}>
+                <th>{group.name}</th>
+                <td>{stats.participants}名</td>
+                <td>{stats.cars}台</td>
+                <td>{stats.sendanTea}本</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
       <table className="participants-report-table">
         <thead>
           <tr>
@@ -98,7 +137,7 @@ function ParticipantsReport({
           </tr>
         </thead>
         <tbody>
-          {groupedParticipants(data, active).flatMap(({ group, participants }) =>
+          {grouped.flatMap(({ group, participants }) =>
             participants.map((participant, index) => (
               <tr key={participant.id}>
                 {index === 0 && (
@@ -253,6 +292,17 @@ function groupedParticipants(data: ReportData, active: ReportParticipant[]) {
       participants: active.filter((participant) => participant.groupId === group.id),
     }))
     .filter(({ participants }) => participants.length > 0);
+}
+
+function participantStats(participants: ReportParticipant[]) {
+  return {
+    participants: participants.length,
+    cars: participants.filter((participant) => participant.transportType === "driver").length,
+    sendanTea: participants.reduce(
+      (total, participant) => total + participant.sendanTeaCount,
+      0,
+    ),
+  };
 }
 
 function routeText(

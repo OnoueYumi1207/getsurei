@@ -430,6 +430,48 @@ tr.absent {
   padding-bottom: 4px;
 }
 
+.report-stats {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 8px 0;
+}
+
+.report-stats div {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px;
+}
+
+.report-stats span {
+  color: var(--muted);
+  display: block;
+  font-size: 11px;
+}
+
+.report-stats strong {
+  display: block;
+  font-size: 20px;
+  margin-top: 3px;
+}
+
+.group-stats-table {
+  font-size: 11px;
+  margin: 8px 0 14px;
+  table-layout: fixed;
+}
+
+.group-stats-table th,
+.group-stats-table td {
+  padding: 4px 6px;
+  white-space: nowrap;
+}
+
+.group-stats-table th:not(:first-child),
+.group-stats-table td:not(:first-child) {
+  text-align: right;
+}
+
 .participants-report-table {
   font-size: 11px;
   table-layout: fixed;
