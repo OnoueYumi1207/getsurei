@@ -66,6 +66,8 @@ const SHUTTLES = [
   ["return", "最終", null, null],
 ] as const;
 
+const INITIALIZATION_VERSION = "2026-07-28-speed-1";
+
 let initializationPromise: Promise<void> | null = null;
 
 export type ParticipantPayload = {
@@ -105,6 +107,16 @@ export async function initialize() {
 
 async function runInitialize() {
   const d1 = db();
+  await d1
+    .prepare("CREATE TABLE IF NOT EXISTS system_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+    .run();
+  const initialized = await d1
+    .prepare("SELECT value FROM system_meta WHERE key = 'initialization_version'")
+    .first<{ value: string }>();
+  if (initialized?.value === INITIALIZATION_VERSION) {
+    return;
+  }
+
   await d1.batch([
     d1.prepare("CREATE TABLE IF NOT EXISTS events (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, event_date TEXT NOT NULL, month_label TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)"),
     d1.prepare("CREATE TABLE IF NOT EXISTS groups (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, editor_name TEXT NOT NULL)"),
@@ -168,6 +180,10 @@ async function runInitialize() {
         .run();
     }
   }
+  await d1
+    .prepare("INSERT OR REPLACE INTO system_meta (key, value) VALUES ('initialization_version', ?)")
+    .bind(INITIALIZATION_VERSION)
+    .run();
 }
 
 async function syncRoles(d1: D1Database) {
@@ -342,6 +358,7 @@ export async function saveParticipant(payload: ParticipantPayload) {
       .bind(participantId, clean.carrierSchedule.outboundDate, clean.carrierSchedule.outboundTime, clean.carrierSchedule.returnDate, clean.carrierSchedule.returnTime)
       .run();
   }
+  return { participantId, updatedAt: now };
 }
 
 export async function deleteParticipant(payload: {

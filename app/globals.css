@@ -103,6 +103,20 @@ legend {
   padding: 40px;
 }
 
+.load-error {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin: 0 auto;
+  max-width: 640px;
+  padding: 20px;
+}
+
+.load-error h1 {
+  font-size: 22px;
+  margin: 0 0 10px;
+}
+
 .topbar,
 .section-head,
 .controls,

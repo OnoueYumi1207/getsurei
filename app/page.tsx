@@ -49,6 +49,13 @@ type AppData = {
   participants: Participant[];
 };
 type SelectedGroupId = number | "summary" | null;
+type SaveParticipantResponse = {
+  ok?: boolean;
+  participantId?: number;
+  updatedAt?: string;
+  error?: string;
+};
+type ApiErrorResponse = { error?: string };
 
 const selectedEventStorageKey = "myoo-goma-selected-event-id";
 const selectedGroupStorageKey = "myoo-goma-selected-group-id";
@@ -84,6 +91,12 @@ function readStoredGroupId(): SelectedGroupId {
   return Number.isFinite(id) && id > 0 ? id : null;
 }
 
+function sortParticipants(participants: Participant[]) {
+  return [...participants].sort(
+    (a, b) => a.groupId - b.groupId || a.name.localeCompare(b.name, "ja"),
+  );
+}
+
 export default function Home() {
   const [data, setData] = useState<AppData | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
@@ -91,6 +104,7 @@ export default function Home() {
   const [editing, setEditing] = useState<Participant | "new" | null>(null);
   const [form, setForm] = useState(blankForm);
   const [message, setMessage] = useState("");
+  const [loadError, setLoadError] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const otherRoleInputRef = useRef<HTMLInputElement>(null);
@@ -98,8 +112,12 @@ export default function Home() {
   async function loadData(nextEventId?: number | null) {
     setIsRefreshing(true);
     try {
+      setLoadError("");
       const response = await fetch("/api/app", { cache: "no-store" });
-      const payload = (await response.json()) as AppData;
+      const payload = (await response.json()) as AppData & ApiErrorResponse;
+      if (!response.ok) {
+        throw new Error(payload.error ?? "読み込みに失敗しました。");
+      }
       setData(payload);
       setSelectedEventId((current) => {
         const requested = nextEventId ?? current;
@@ -128,6 +146,10 @@ export default function Home() {
         }
         return payload.groups[0]?.id ?? null;
       });
+    } catch (error) {
+      setLoadError(
+        error instanceof Error ? error.message : "読み込みに失敗しました。",
+      );
     } finally {
       setIsRefreshing(false);
     }
@@ -214,14 +236,49 @@ export default function Home() {
           : null,
       }),
     });
-    const payload = await response.json();
+    const payload = (await response.json()) as SaveParticipantResponse;
     if (!response.ok) {
       setMessage(payload.error ?? "保存できませんでした。");
       return;
     }
+    const participantId = payload.participantId ?? id;
+    if (!participantId) {
+      setMessage("保存結果を確認できませんでした。更新ボタンで確認してください。");
+      return;
+    }
+    const savedParticipant: Participant = {
+      id: participantId,
+      eventId: selectedEvent.id,
+      groupId: selectedGroup.id,
+      name: form.name.trim(),
+      isAbsent: form.isAbsent,
+      sendanTeaCount: Math.max(0, Number(form.sendanTeaCount) || 0),
+      transportType: form.transportType,
+      rideDriverParticipantId:
+        form.transportType === "passenger" ? form.rideDriverParticipantId : null,
+      outboundShuttleId:
+        form.transportType === "shuttle" ? form.outboundShuttleId : null,
+      returnShuttleId:
+        form.transportType === "shuttle" ? form.returnShuttleId : null,
+      otherRoleText: form.otherRoleText.trim(),
+      roles: form.roles,
+      carrierSchedule: form.roles.some((roleId) => roleName(roleId) === "運搬")
+        ? form.carrierSchedule
+        : null,
+      updatedAt: payload.updatedAt ?? new Date().toISOString(),
+    };
+    setData((current) => {
+      if (!current) return current;
+      const withoutSaved = current.participants.filter(
+        (participant) => participant.id !== savedParticipant.id,
+      );
+      return {
+        ...current,
+        participants: sortParticipants([...withoutSaved, savedParticipant]),
+      };
+    });
     setEditing(null);
     setMessage("保存しました。");
-    await loadData(selectedEvent.id);
   }
 
   async function copyFromPreviousMonth() {
@@ -267,8 +324,20 @@ export default function Home() {
       setMessage(payload.error ?? "削除できませんでした。");
       return;
     }
+    setData((current) => {
+      if (!current) return current;
+      return {
+        ...current,
+        participants: current.participants
+          .filter((item) => item.id !== participant.id)
+          .map((item) =>
+            item.rideDriverParticipantId === participant.id
+              ? { ...item, rideDriverParticipantId: null }
+              : item,
+          ),
+      };
+    });
     setMessage("削除しました。");
-    await loadData(selectedEvent.id);
   }
 
   async function updateAbsence(participant: Participant, isAbsent: boolean) {
@@ -327,6 +396,20 @@ export default function Home() {
     );
   }
 
+  if ((!data || !selectedEvent || !selectedGroupId) && loadError) {
+    return (
+      <main className="loading">
+        <section className="load-error">
+          <h1>読み込みに失敗しました。</h1>
+          <p>{loadError}</p>
+          <button disabled={isRefreshing} onClick={() => loadData(selectedEventId)}>
+            {isRefreshing ? "再読み込み中" : "再読み込み"}
+          </button>
+        </section>
+      </main>
+    );
+  }
+
   if (!data || !selectedEvent || !selectedGroupId) {
     return <main className="loading">読み込み中です。</main>;
   }
@@ -376,6 +459,7 @@ export default function Home() {
       {!data.isAdmin && data.user && (
         <p className="admin-note">前月からコピーは管理者のみ実行できます。</p>
       )}
+      {loadError && <p className="admin-note">最新情報を取得できませんでした：{loadError}</p>}
 
       <nav className="tabs" aria-label="伝道会">
         {data.groups.map((group) => (

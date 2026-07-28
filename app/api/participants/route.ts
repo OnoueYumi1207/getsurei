@@ -38,8 +38,8 @@ export async function DELETE(request: Request) {
 
 async function persist(request: Request) {
   try {
-    await saveParticipant(await request.json());
-    return Response.json({ ok: true });
+    const result = await saveParticipant(await request.json());
+    return Response.json({ ok: true, ...result });
   } catch (error) {
     return Response.json(
       { error: error instanceof Error ? error.message : "保存に失敗しました。" },
