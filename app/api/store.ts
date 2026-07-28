@@ -91,6 +91,7 @@ export type ParticipantPayload = {
   rideDriverParticipantId: number | null;
   outboundShuttleId: number | null;
   returnShuttleId: number | null;
+  usesShuttleSelection?: boolean;
   otherRoleText: string;
   roles: number[];
   carrierSchedule: {
@@ -499,23 +500,27 @@ export async function copyPreviousEvent(targetEventId: number) {
 }
 
 function normalizePayload(payload: ParticipantPayload) {
+  const roles = Array.from(new Set(payload.roles.map(Number).filter(Boolean)));
+  const transportType = ["none", "driver", "passenger", "shuttle"].includes(
+    payload.transportType,
+  )
+    ? payload.transportType
+    : "none";
+  const usesShuttleSelection =
+    transportType === "shuttle" || Boolean(payload.usesShuttleSelection);
   return {
     ...payload,
     name: payload.name.trim(),
     isAbsent: Boolean(payload.isAbsent),
     sendanTeaCount: Math.max(0, Number(payload.sendanTeaCount) || 0),
-    transportType: ["none", "driver", "passenger", "shuttle"].includes(
-      payload.transportType,
-    )
-      ? payload.transportType
-      : "none",
+    transportType,
     rideDriverParticipantId: null,
     outboundShuttleId:
-      payload.transportType === "shuttle" ? payload.outboundShuttleId : null,
+      usesShuttleSelection ? payload.outboundShuttleId : null,
     returnShuttleId:
-      payload.transportType === "shuttle" ? payload.returnShuttleId : null,
+      usesShuttleSelection ? payload.returnShuttleId : null,
     otherRoleText: payload.otherRoleText?.trim() ?? "",
-    roles: Array.from(new Set(payload.roles.map(Number).filter(Boolean))),
+    roles,
   };
 }
 

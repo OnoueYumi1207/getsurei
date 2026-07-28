@@ -224,7 +224,10 @@ function routeText(
   participant: ReportParticipant,
   direction: "outbound" | "return",
 ) {
-  if (participant.transportType === "shuttle") {
+  if (
+    participant.transportType === "shuttle" ||
+    participantHasRole(data, participant, "送迎ドライバー")
+  ) {
     const id = direction === "outbound" ? participant.outboundShuttleId : participant.returnShuttleId;
     return data.shuttles.find((shuttle) => shuttle.id === id)?.name ?? "";
   }
@@ -232,6 +235,16 @@ function routeText(
   return direction === "outbound"
     ? scheduleText(participant.carrierSchedule.outboundDate, participant.carrierSchedule.outboundTime)
     : scheduleText(participant.carrierSchedule.returnDate, participant.carrierSchedule.returnTime);
+}
+
+function participantHasRole(
+  data: ReportData,
+  participant: ReportParticipant,
+  name: string,
+) {
+  return participant.roles.some(
+    (roleId) => data.roles.find((role) => role.id === roleId)?.name === name,
+  );
 }
 
 function scheduleText(date: string, time: string) {

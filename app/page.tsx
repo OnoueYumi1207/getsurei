@@ -228,6 +228,9 @@ export default function Home() {
     if (!selectedEvent || !selectedGroup || !form.name.trim()) return;
     const id = typeof editing === "object" && editing ? editing.id : undefined;
     const selectedRoles = form.attendanceOnly ? [] : form.roles;
+    const usesShuttleSelection =
+      form.transportType === "shuttle" ||
+      selectedRoles.some((roleId) => roleName(roleId) === "送迎ドライバー");
     const response = await fetch("/api/participants", {
       method: id ? "PUT" : "POST",
       headers: { "content-type": "application/json" },
@@ -239,6 +242,9 @@ export default function Home() {
         isAbsent: form.attendanceOnly ? false : form.isAbsent,
         roles: selectedRoles,
         rideDriverParticipantId: null,
+        usesShuttleSelection,
+        outboundShuttleId: usesShuttleSelection ? form.outboundShuttleId : null,
+        returnShuttleId: usesShuttleSelection ? form.returnShuttleId : null,
         carrierSchedule: selectedRoles.some((roleId) => roleName(roleId) === "運搬")
           ? form.carrierSchedule
           : null,
@@ -264,9 +270,9 @@ export default function Home() {
       transportType: form.transportType,
       rideDriverParticipantId: null,
       outboundShuttleId:
-        form.transportType === "shuttle" ? form.outboundShuttleId : null,
+        usesShuttleSelection ? form.outboundShuttleId : null,
       returnShuttleId:
-        form.transportType === "shuttle" ? form.returnShuttleId : null,
+        usesShuttleSelection ? form.returnShuttleId : null,
       otherRoleText: form.otherRoleText.trim(),
       roles: selectedRoles,
       carrierSchedule: selectedRoles.some((roleId) => roleName(roleId) === "運搬")
@@ -381,6 +387,10 @@ export default function Home() {
     return data?.roles.find((role) => role.id === id)?.name ?? "";
   }
 
+  function formHasRole(name: string) {
+    return form.roles.some((roleId) => roleName(roleId) === name);
+  }
+
   function shuttleCount(shuttleId: number) {
     return (
       data?.participants.filter(
@@ -410,6 +420,8 @@ export default function Home() {
   if (!data || !selectedEvent || !selectedGroupId) {
     return <main className="loading">読み込み中です。</main>;
   }
+
+  const formHasShuttleDriverRole = formHasRole("送迎ドライバー");
 
   return (
     <main className="app-shell">
@@ -629,6 +641,38 @@ export default function Home() {
                       </div>
                     );
                   }
+                  if (role.name === "送迎ドライバー") {
+                    return (
+                      <div key={role.id} className="department-shuttle-control">
+                        <label className="checkline">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(event) => toggleRole(event.target.checked)}
+                          />
+                          {role.name}
+                        </label>
+                        {checked && (
+                          <div className="form-grid">
+                            <ShuttleSelect
+                              label="往路"
+                              shuttles={data.shuttles.filter((s) => s.direction === "outbound")}
+                              value={form.outboundShuttleId}
+                              counts={shuttleCount}
+                              onChange={(id) => setForm({ ...form, outboundShuttleId: id })}
+                            />
+                            <ShuttleSelect
+                              label="復路"
+                              shuttles={data.shuttles.filter((s) => s.direction === "return")}
+                              value={form.returnShuttleId}
+                              counts={shuttleCount}
+                              onChange={(id) => setForm({ ...form, returnShuttleId: id })}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
                   return (
                     <label key={role.id} className="checkline">
                       <input
@@ -727,22 +771,27 @@ export default function Home() {
                       type="radio"
                       name="transport"
                       checked={form.transportType === value}
-                      onChange={() =>
+                      onChange={() => {
+                        const keepShuttleSelection = formHasRole("送迎ドライバー");
                         setForm({
                           ...form,
                           transportType: value as Participant["transportType"],
                           rideDriverParticipantId: null,
-                          outboundShuttleId: null,
-                          returnShuttleId: null,
-                        })
-                      }
+                          outboundShuttleId: keepShuttleSelection
+                            ? form.outboundShuttleId
+                            : null,
+                          returnShuttleId: keepShuttleSelection
+                            ? form.returnShuttleId
+                            : null,
+                        });
+                      }}
                     />
                     {label}
                   </label>
                 ))}
               </div>
             </fieldset>
-            {form.transportType === "shuttle" && (
+            {form.transportType === "shuttle" && !formHasShuttleDriverRole && (
               <div className="form-grid">
                 <ShuttleSelect
                   label="往路"
@@ -995,7 +1044,10 @@ function routeLabel(
   data: AppData,
   direction: "outbound" | "return",
 ) {
-  if (participant.transportType !== "shuttle") {
+  if (
+    participant.transportType !== "shuttle" &&
+    !participantHasRole(data, participant, "送迎ドライバー")
+  ) {
     const schedule = participant.carrierSchedule;
     if (!schedule) return "";
     return direction === "outbound"
@@ -1007,6 +1059,12 @@ function routeLabel(
       ? participant.outboundShuttleId
       : participant.returnShuttleId;
   return data.shuttles.find((shuttle) => shuttle.id === id)?.name ?? "";
+}
+
+function participantHasRole(data: AppData, participant: Participant, name: string) {
+  return participant.roles.some(
+    (roleId) => data.roles.find((role) => role.id === roleId)?.name === name,
+  );
 }
 
 function latestUpdatedAt(participants: Participant[]) {

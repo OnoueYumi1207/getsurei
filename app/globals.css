@@ -326,6 +326,12 @@ tr.absent {
   width: auto;
 }
 
+.department-shuttle-control {
+  display: grid;
+  gap: 10px;
+  grid-column: 1 / -1;
+}
+
 .other-role-control {
   align-items: center;
   display: grid;
