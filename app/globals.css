@@ -431,18 +431,24 @@ tr.absent {
 }
 
 .participants-report-table {
-  font-size: 13px;
+  font-size: 11px;
   table-layout: fixed;
+}
+
+.participants-report-table th,
+.participants-report-table td {
+  overflow-wrap: normal;
+  word-break: keep-all;
 }
 
 .participants-report-table th:nth-child(1),
 .participants-report-table td:nth-child(1) {
-  width: 58px;
+  width: 64px;
 }
 
 .participants-report-table th:nth-child(2),
 .participants-report-table td:nth-child(2) {
-  width: 90px;
+  width: 76px;
 }
 
 .participants-report-table th:nth-child(3),
@@ -453,28 +459,29 @@ tr.absent {
 .participants-report-table th:nth-child(4),
 .participants-report-table td:nth-child(4) {
   text-align: center;
-  width: 44px;
+  width: 36px;
 }
 
 .participants-report-table th:nth-child(5),
 .participants-report-table td:nth-child(5) {
-  width: 68px;
+  width: 54px;
 }
 
 .participants-report-table th:nth-child(6),
 .participants-report-table td:nth-child(6),
 .participants-report-table th:nth-child(7),
 .participants-report-table td:nth-child(7) {
-  width: 90px;
+  width: 74px;
 }
 
 .group-cell {
   vertical-align: top;
 }
 
+.group-cell,
+.participant-name-cell,
 .nowrap-cell,
 .route-cell {
-  font-size: 12px;
   white-space: nowrap;
 }
 

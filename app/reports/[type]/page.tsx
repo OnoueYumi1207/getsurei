@@ -106,7 +106,7 @@ function ParticipantsReport({
                     {group.name}
                   </td>
                 )}
-                <td>{participant.name}</td>
+                <td className="participant-name-cell">{participant.name}</td>
                 <td>{roleText(data, participant)}</td>
                 <td className="count-cell">{participant.sendanTeaCount}</td>
                 <td className="nowrap-cell">{transportText(data, participant)}</td>
