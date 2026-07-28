@@ -469,7 +469,7 @@ export async function copyPreviousEvent(targetEventId: number) {
   }
 
   const source = await d1
-    .prepare("SELECT id, group_id AS groupId, name, sendan_tea_count AS sendanTeaCount, transport_type AS transportType, ride_driver_participant_id AS rideDriverParticipantId, outbound_shuttle_id AS outboundShuttleId, return_shuttle_id AS returnShuttleId, other_role_text AS otherRoleText FROM participants WHERE event_id = ? ORDER BY id")
+    .prepare("SELECT id, group_id AS groupId, name, sendan_tea_count AS sendanTeaCount, transport_type AS transportType, outbound_shuttle_id AS outboundShuttleId, return_shuttle_id AS returnShuttleId, other_role_text AS otherRoleText FROM participants WHERE event_id = ? ORDER BY id")
     .bind(previous.id)
     .all<Record<string, unknown>>();
   const oldToNew = new Map<number, number>();
@@ -479,15 +479,6 @@ export async function copyPreviousEvent(targetEventId: number) {
       .bind(target.id, participant.groupId, participant.name, participant.sendanTeaCount, participant.transportType, participant.outboundShuttleId, participant.returnShuttleId, participant.otherRoleText ?? "", now, now)
       .run();
     oldToNew.set(participant.id as number, result.meta.last_row_id);
-  }
-  for (const participant of source.results ?? []) {
-    const oldDriver = participant.rideDriverParticipantId as number | null;
-    if (oldDriver && oldToNew.has(oldDriver)) {
-      await d1
-        .prepare("UPDATE participants SET ride_driver_participant_id = ? WHERE id = ?")
-        .bind(oldToNew.get(oldDriver), oldToNew.get(participant.id as number))
-        .run();
-    }
   }
   const roles = await d1
     .prepare("SELECT participant_id AS participantId, role_id AS roleId FROM participant_roles WHERE participant_id IN (SELECT id FROM participants WHERE event_id = ?)")
@@ -514,8 +505,7 @@ function normalizePayload(payload: ParticipantPayload) {
     )
       ? payload.transportType
       : "none",
-    rideDriverParticipantId:
-      payload.transportType === "passenger" ? payload.rideDriverParticipantId : null,
+    rideDriverParticipantId: null,
     outboundShuttleId:
       payload.transportType === "shuttle" ? payload.outboundShuttleId : null,
     returnShuttleId:

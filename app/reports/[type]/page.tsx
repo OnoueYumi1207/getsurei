@@ -89,7 +89,7 @@ function ParticipantsReport({
           <tr>
             <th>伝道会</th>
             <th>参加者名</th>
-            <th>担当</th>
+            <th>部署</th>
             <th>仙丹茶</th>
             <th>移動手段</th>
             <th>往路</th>
@@ -103,7 +103,7 @@ function ParticipantsReport({
               <td>{participant.name}</td>
               <td>{roleText(data, participant)}</td>
               <td>{participant.sendanTeaCount}</td>
-              <td>{transportText(data, participant)}</td>
+              <td>{transportText(participant)}</td>
               <td>{routeText(data, participant, "outbound")}</td>
               <td>{routeText(data, participant, "return")}</td>
             </tr>
@@ -123,8 +123,8 @@ function RolesReport({
 }) {
   return (
     <>
-      <h2>担当名簿</h2>
-      <table>
+      <h2>部署名簿</h2>
+      <table className="department-report-table">
         <tbody>
           {data.roles.map((role) => {
             const members = active.filter((participant) => participant.roles.includes(role.id));
@@ -208,15 +208,10 @@ function roleText(data: ReportData, participant: ReportParticipant) {
   );
 }
 
-function transportText(data: ReportData, participant: ReportParticipant) {
+function transportText(participant: ReportParticipant) {
   if (participant.transportType === "none") return "";
   if (participant.transportType === "driver") return "ドライバー";
-  if (participant.transportType === "passenger") {
-    const driver = data.participants.find(
-      (item) => item.id === participant.rideDriverParticipantId,
-    );
-    return `同乗${driver ? `（${driver.name}）` : ""}`;
-  }
+  if (participant.transportType === "passenger") return "同乗";
   return "送迎希望";
 }
 

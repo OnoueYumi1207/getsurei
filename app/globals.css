@@ -387,8 +387,12 @@ tr.absent {
 
 .role-row {
   display: grid;
-  grid-template-columns: 230px 1fr;
+  grid-template-columns: max-content 1fr;
   gap: 12px;
+}
+
+.role-row strong {
+  min-width: 0;
 }
 
 .report-page {
@@ -412,6 +416,19 @@ tr.absent {
   font-size: 18px;
   margin: 24px 0 8px;
   padding-bottom: 4px;
+}
+
+.department-report-table {
+  table-layout: auto;
+}
+
+.department-report-table th {
+  white-space: nowrap;
+  width: 1%;
+}
+
+.department-report-table td {
+  width: auto;
 }
 
 .print-actions {

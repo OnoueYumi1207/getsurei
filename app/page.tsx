@@ -233,6 +233,7 @@ export default function Home() {
         eventId: selectedEvent.id,
         groupId: selectedGroup.id,
         ...form,
+        rideDriverParticipantId: null,
         carrierSchedule: form.roles.some((roleId) => roleName(roleId) === "運搬")
           ? form.carrierSchedule
           : null,
@@ -256,8 +257,7 @@ export default function Home() {
       isAbsent: form.isAbsent,
       sendanTeaCount: Math.max(0, Number(form.sendanTeaCount) || 0),
       transportType: form.transportType,
-      rideDriverParticipantId:
-        form.transportType === "passenger" ? form.rideDriverParticipantId : null,
+      rideDriverParticipantId: null,
       outboundShuttleId:
         form.transportType === "shuttle" ? form.outboundShuttleId : null,
       returnShuttleId:
@@ -374,16 +374,6 @@ export default function Home() {
 
   function roleName(id: number) {
     return data?.roles.find((role) => role.id === id)?.name ?? "";
-  }
-
-  function driverOptions() {
-    if (!data) return [];
-    return data.participants.filter(
-      (participant) =>
-        participant.eventId === selectedEventId &&
-        participant.transportType === "driver" &&
-        !participant.isAbsent,
-    );
   }
 
   function shuttleCount(shuttleId: number) {
@@ -572,7 +562,7 @@ export default function Home() {
               </label>
             </div>
             <fieldset>
-              <legend>担当</legend>
+              <legend>部署</legend>
               <div className="checkbox-grid">
                 {data.roles.map((role) => {
                   const checked = form.roles.includes(role.id);
@@ -603,7 +593,7 @@ export default function Home() {
                         </label>
                         <input
                           ref={otherRoleInputRef}
-                          aria-label="その他の担当内容"
+                          aria-label="その他の部署内容"
                           placeholder="記入欄"
                           value={form.otherRoleText}
                           onChange={(event) =>
@@ -727,29 +717,6 @@ export default function Home() {
                 ))}
               </div>
             </fieldset>
-            {form.transportType === "passenger" && (
-              <label>
-                同乗するドライバー
-                <select
-                  value={form.rideDriverParticipantId ?? ""}
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      rideDriverParticipantId: event.target.value
-                        ? Number(event.target.value)
-                        : null,
-                    })
-                  }
-                >
-                  <option value="">選択してください</option>
-                  {driverOptions().map((driver) => (
-                    <option key={driver.id} value={driver.id}>
-                      {driver.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
             {form.transportType === "shuttle" && (
               <div className="form-grid">
                 <ShuttleSelect
@@ -802,7 +769,7 @@ function ParticipantTable({
           <tr>
             <th>欠席</th>
             <th>参加者名</th>
-            <th>担当</th>
+            <th>部署</th>
             <th>仙丹茶</th>
             <th>移動手段</th>
             <th>往路</th>
@@ -831,7 +798,7 @@ function ParticipantTable({
                 {roleLabels(data, participant).join("、")}
               </td>
               <td>{participant.sendanTeaCount}</td>
-              <td>{transportLabel(participant, data)}</td>
+              <td>{transportLabel(participant)}</td>
               <td>{routeLabel(participant, data, "outbound")}</td>
               <td>{routeLabel(participant, data, "return")}</td>
               {canEdit && (
@@ -870,7 +837,7 @@ function Summary({ data, event }: { data: AppData; event: EventRecord }) {
             参加者名簿
           </a>
           <a href={`/reports/roles?eventId=${event.id}`} target="_blank">
-            担当名簿
+            部署名簿
           </a>
           <a href={`/reports/shuttles?eventId=${event.id}`} target="_blank">
             送迎名簿
@@ -913,7 +880,7 @@ function Summary({ data, event }: { data: AppData; event: EventRecord }) {
           );
         })}
       </div>
-      <h3>担当一覧</h3>
+      <h3>部署一覧</h3>
       <div className="role-list">
         {data.roles.map((role) => {
           const members = active.filter((participant) =>
@@ -991,15 +958,10 @@ function ShuttleSelect({
   );
 }
 
-function transportLabel(participant: Participant, data: AppData) {
+function transportLabel(participant: Participant) {
   if (participant.transportType === "none") return "選択なし";
   if (participant.transportType === "driver") return "ドライバー";
-  if (participant.transportType === "passenger") {
-    const driver = data.participants.find(
-      (item) => item.id === participant.rideDriverParticipantId,
-    );
-    return `同乗${driver ? `（${driver.name}）` : ""}`;
-  }
+  if (participant.transportType === "passenger") return "同乗";
   return "送迎希望";
 }
 
