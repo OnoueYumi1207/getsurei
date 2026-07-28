@@ -30,6 +30,7 @@ type Participant = {
   outboundShuttleId: number | null;
   returnShuttleId: number | null;
   otherRoleText: string;
+  stallRoleText: string;
   roles: number[];
   carrierSchedule: {
     outboundDate: string;
@@ -70,6 +71,7 @@ const blankForm = {
   outboundShuttleId: null as number | null,
   returnShuttleId: null as number | null,
   otherRoleText: "",
+  stallRoleText: "",
   roles: [] as number[],
   carrierSchedule: {
     outboundDate: "",
@@ -223,6 +225,7 @@ export default function Home() {
         outboundShuttleId: participant.outboundShuttleId,
         returnShuttleId: participant.returnShuttleId,
         otherRoleText: participant.otherRoleText ?? "",
+        stallRoleText: participant.stallRoleText ?? "",
         roles: participant.roles,
         carrierSchedule:
           participant.carrierSchedule ?? blankForm.carrierSchedule,
@@ -237,10 +240,7 @@ export default function Home() {
     const hasShuttleDriverRole = selectedRoles.some(
       (roleId) => roleName(roleId) === "送迎ドライバー",
     );
-    const savedTransportType =
-      hasShuttleDriverRole && form.transportType === "shuttle"
-        ? "none"
-        : form.transportType;
+    const savedTransportType = hasShuttleDriverRole ? "driver" : form.transportType;
     const usesShuttleSelection =
       savedTransportType === "shuttle" || hasShuttleDriverRole;
     const response = await fetch("/api/participants", {
@@ -287,6 +287,7 @@ export default function Home() {
       returnShuttleId:
         usesShuttleSelection ? form.returnShuttleId : null,
       otherRoleText: form.otherRoleText.trim(),
+      stallRoleText: form.stallRoleText.trim(),
       roles: selectedRoles,
       carrierSchedule: selectedRoles.some((roleId) => roleName(roleId) === "運搬")
         ? form.carrierSchedule
@@ -647,6 +648,40 @@ export default function Home() {
                         : form.roles.filter((id) => id !== role.id),
                     });
                   };
+                  if (role.name === "出店") {
+                    return (
+                      <div key={role.id} className="other-role-control">
+                        <label className="checkline">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(event) => {
+                              const isChecked = event.target.checked;
+                              setForm({
+                                ...form,
+                                attendanceOnly: isChecked ? false : form.attendanceOnly,
+                                isAbsent: isChecked ? false : form.isAbsent,
+                                stallRoleText: isChecked ? form.stallRoleText : "",
+                                roles: isChecked
+                                  ? [...form.roles, role.id]
+                                  : form.roles.filter((id) => id !== role.id),
+                              });
+                            }}
+                          />
+                          出店（
+                        </label>
+                        <input
+                          aria-label="出店の内容"
+                          placeholder="焼きそば、たこ焼き など"
+                          value={form.stallRoleText}
+                          onChange={(event) =>
+                            setForm({ ...form, stallRoleText: event.target.value })
+                          }
+                        />
+                        <span>）</span>
+                      </div>
+                    );
+                  }
                   if (role.name === "その他") {
                     return (
                       <div key={role.id} className="other-role-control">
@@ -698,10 +733,7 @@ export default function Home() {
                                 ...form,
                                 attendanceOnly: isChecked ? false : form.attendanceOnly,
                                 isAbsent: isChecked ? false : form.isAbsent,
-                                transportType:
-                                  isChecked && form.transportType === "shuttle"
-                                    ? "none"
-                                    : form.transportType,
+                                transportType: isChecked ? "driver" : form.transportType,
                                 roles: isChecked
                                   ? [...form.roles, role.id]
                                   : form.roles.filter((id) => id !== role.id),
@@ -828,8 +860,12 @@ export default function Home() {
                     <input
                       type="radio"
                       name="transport"
-                      disabled={value === "shuttle" && formHasShuttleDriverRole}
-                      checked={form.transportType === value}
+                      disabled={formHasShuttleDriverRole && value !== "driver"}
+                      checked={
+                        formHasShuttleDriverRole
+                          ? value === "driver"
+                          : form.transportType === value
+                      }
                       onChange={() => {
                         const keepShuttleSelection = formHasRole("送迎ドライバー");
                         setForm({
@@ -1026,6 +1062,8 @@ function Summary({ data, event }: { data: AppData; event: EventRecord }) {
                   .map((member) =>
                     role.name === "その他" && member.otherRoleText
                       ? `${member.name}（${member.otherRoleText}）`
+                      : role.name === "出店" && member.stallRoleText
+                        ? `${member.name}（${member.stallRoleText}）`
                       : member.name,
                   )
                   .join("、") || "未定"}
@@ -1044,6 +1082,9 @@ function roleLabels(data: AppData, participant: Participant) {
       const name = data.roles.find((role) => role.id === id)?.name;
       if (name === "その他" && participant.otherRoleText) {
         return participant.otherRoleText;
+      }
+      if (name === "出店" && participant.stallRoleText) {
+        return `出店（${participant.stallRoleText}）`;
       }
       return name;
     })

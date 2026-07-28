@@ -1,0 +1,1 @@
+ALTER TABLE `participants` ADD `stall_role_text` text;

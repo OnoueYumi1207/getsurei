@@ -24,6 +24,7 @@ type ReportParticipant = {
   outboundShuttleId: number | null;
   returnShuttleId: number | null;
   otherRoleText: string;
+  stallRoleText: string;
   roles: number[];
   carrierSchedule: {
     outboundDate: string;
@@ -139,6 +140,8 @@ function RolesReport({
                             ? `${member.name}（往路 ${scheduleText(member.carrierSchedule.outboundDate, member.carrierSchedule.outboundTime)} / 復路 ${scheduleText(member.carrierSchedule.returnDate, member.carrierSchedule.returnTime)}）`
                             : role.name === "その他" && member.otherRoleText
                               ? `${member.name}（${member.otherRoleText}）`
+                              : role.name === "出店" && member.stallRoleText
+                                ? `${member.name}（${member.stallRoleText}）`
                               : member.name,
                         )
                         .join("、")
@@ -213,6 +216,9 @@ function roleText(data: ReportData, participant: ReportParticipant) {
         const name = data.roles.find((role) => role.id === id)?.name;
         if (name === "その他" && participant.otherRoleText) {
           return participant.otherRoleText;
+        }
+        if (name === "出店" && participant.stallRoleText) {
+          return `出店（${participant.stallRoleText}）`;
         }
         return name;
       })

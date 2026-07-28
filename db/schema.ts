@@ -46,6 +46,7 @@ export const participants = sqliteTable("participants", {
   outboundShuttleId: integer("outbound_shuttle_id"),
   returnShuttleId: integer("return_shuttle_id"),
   otherRoleText: text("other_role_text"),
+  stallRoleText: text("stall_role_text"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
