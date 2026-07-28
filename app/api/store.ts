@@ -11,6 +11,7 @@ const ROLE_NAMES = [
   "設営",
   "銀行",
   "祈願会",
+  "研参講師",
   "道具販売",
   "五路財神",
   "太明星",
@@ -19,11 +20,13 @@ const ROLE_NAMES = [
   "金剛甘露祈祷（主弁）",
   "金剛甘露祈祷（秡い）",
   "甘露壇",
+  "農協",
   "膳食",
   "感謝の誠",
   "泉珠卜占",
-  "送迎調整",
+  "得道儀式",
   "送迎ドライバー",
+  "出店",
   "フリー",
   "その他",
 ];
@@ -32,6 +35,7 @@ const ROLE_RENAMES = new Map([
   ["大黒天恵比寿依り代", "恵比寿大黒天依り代"],
   ["泉珠銀行", "銀行"],
   ["案内所", "受付"],
+  ["送迎調整", "得道儀式"],
 ]);
 
 const GROUPS = [
@@ -66,7 +70,7 @@ const SHUTTLES = [
   ["return", "最終", null, null],
 ] as const;
 
-const INITIALIZATION_VERSION = "2026-07-28-speed-1";
+const INITIALIZATION_VERSION = "2026-07-28-departments-1";
 
 let initializationPromise: Promise<void> | null = null;
 let masterDataPromise: Promise<{
