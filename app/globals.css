@@ -506,7 +506,8 @@ tr.absent {
 
 .participants-report-table th:nth-child(5),
 .participants-report-table td:nth-child(5) {
-  width: 54px;
+  text-align: center;
+  width: 58px;
 }
 
 .participants-report-table th:nth-child(6),
