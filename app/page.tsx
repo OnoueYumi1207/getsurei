@@ -1027,7 +1027,7 @@ function roleLabels(data: AppData, participant: Participant) {
     .map((id) => {
       const name = data.roles.find((role) => role.id === id)?.name;
       if (name === "その他" && participant.otherRoleText) {
-        return `その他（${participant.otherRoleText}）`;
+        return participant.otherRoleText;
       }
       return name;
     })

@@ -25,8 +25,9 @@ const ROLE_NAMES = [
   "感謝の誠",
   "泉珠卜占",
   "得道儀式",
-  "送迎ドライバー",
   "出店",
+  "送迎ドライバー",
+  "龍華水増量祈祷",
   "フリー",
   "その他",
 ];
@@ -70,7 +71,7 @@ const SHUTTLES = [
   ["return", "最終", null, null],
 ] as const;
 
-const INITIALIZATION_VERSION = "2026-07-28-departments-1";
+const INITIALIZATION_VERSION = "2026-07-28-departments-2";
 
 let initializationPromise: Promise<void> | null = null;
 let masterDataPromise: Promise<{
