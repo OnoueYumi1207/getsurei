@@ -570,6 +570,11 @@ export default function Home() {
                   type="number"
                   min="0"
                   value={form.sendanTeaCount}
+                  onFocus={(event) => {
+                    if (event.target.value === "0") {
+                      event.target.select();
+                    }
+                  }}
                   onChange={(event) =>
                     setForm({
                       ...form,
