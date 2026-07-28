@@ -207,12 +207,18 @@ export default function Home() {
     if (participant === "new") {
       setForm(blankForm);
     } else {
+      const hasShuttleDriverRole = participant.roles.some(
+        (roleId) => roleName(roleId) === "送迎ドライバー",
+      );
       setForm({
         name: participant.name,
         attendanceOnly: !participant.isAbsent && participant.roles.length === 0,
         isAbsent: participant.isAbsent,
         sendanTeaCount: participant.sendanTeaCount,
-        transportType: participant.transportType,
+        transportType:
+          hasShuttleDriverRole && participant.transportType === "shuttle"
+            ? "none"
+            : participant.transportType,
         rideDriverParticipantId: participant.rideDriverParticipantId,
         outboundShuttleId: participant.outboundShuttleId,
         returnShuttleId: participant.returnShuttleId,
@@ -228,9 +234,15 @@ export default function Home() {
     if (!selectedEvent || !selectedGroup || !form.name.trim()) return;
     const id = typeof editing === "object" && editing ? editing.id : undefined;
     const selectedRoles = form.attendanceOnly ? [] : form.roles;
+    const hasShuttleDriverRole = selectedRoles.some(
+      (roleId) => roleName(roleId) === "送迎ドライバー",
+    );
+    const savedTransportType =
+      hasShuttleDriverRole && form.transportType === "shuttle"
+        ? "none"
+        : form.transportType;
     const usesShuttleSelection =
-      form.transportType === "shuttle" ||
-      selectedRoles.some((roleId) => roleName(roleId) === "送迎ドライバー");
+      savedTransportType === "shuttle" || hasShuttleDriverRole;
     const response = await fetch("/api/participants", {
       method: id ? "PUT" : "POST",
       headers: { "content-type": "application/json" },
@@ -239,6 +251,7 @@ export default function Home() {
         eventId: selectedEvent.id,
         groupId: selectedGroup.id,
         ...form,
+        transportType: savedTransportType,
         isAbsent: form.attendanceOnly ? false : form.isAbsent,
         roles: selectedRoles,
         rideDriverParticipantId: null,
@@ -267,7 +280,7 @@ export default function Home() {
       name: form.name.trim(),
       isAbsent: form.attendanceOnly ? false : form.isAbsent,
       sendanTeaCount: Math.max(0, Number(form.sendanTeaCount) || 0),
-      transportType: form.transportType,
+      transportType: savedTransportType,
       rideDriverParticipantId: null,
       outboundShuttleId:
         usesShuttleSelection ? form.outboundShuttleId : null,
@@ -397,6 +410,8 @@ export default function Home() {
         (participant) =>
           participant.eventId === selectedEventId &&
           !participant.isAbsent &&
+          participant.transportType === "shuttle" &&
+          !participant.roles.some((roleId) => roleName(roleId) === "送迎ドライバー") &&
           (participant.outboundShuttleId === shuttleId ||
             participant.returnShuttleId === shuttleId),
       ).length ?? 0
@@ -490,6 +505,27 @@ export default function Home() {
         >
           全体集計
         </button>
+        <a
+          href={`/reports/participants?eventId=${selectedEvent.id}`}
+          target="_blank"
+          rel="noreferrer"
+        >
+          参加者名簿
+        </a>
+        <a
+          href={`/reports/roles?eventId=${selectedEvent.id}`}
+          target="_blank"
+          rel="noreferrer"
+        >
+          部署名簿
+        </a>
+        <a
+          href={`/reports/shuttles?eventId=${selectedEvent.id}`}
+          target="_blank"
+          rel="noreferrer"
+        >
+          送迎名簿
+        </a>
       </nav>
 
       {selectedGroupId === "summary" ? (
@@ -648,7 +684,21 @@ export default function Home() {
                           <input
                             type="checkbox"
                             checked={checked}
-                            onChange={(event) => toggleRole(event.target.checked)}
+                            onChange={(event) => {
+                              const isChecked = event.target.checked;
+                              setForm({
+                                ...form,
+                                attendanceOnly: isChecked ? false : form.attendanceOnly,
+                                isAbsent: isChecked ? false : form.isAbsent,
+                                transportType:
+                                  isChecked && form.transportType === "shuttle"
+                                    ? "none"
+                                    : form.transportType,
+                                roles: isChecked
+                                  ? [...form.roles, role.id]
+                                  : form.roles.filter((id) => id !== role.id),
+                              });
+                            }}
                           />
                           {role.name}
                         </label>
@@ -770,6 +820,7 @@ export default function Home() {
                     <input
                       type="radio"
                       name="transport"
+                      disabled={value === "shuttle" && formHasShuttleDriverRole}
                       checked={form.transportType === value}
                       onChange={() => {
                         const keepShuttleSelection = formHasRole("送迎ドライバー");
@@ -872,7 +923,7 @@ function ParticipantTable({
                 {roleLabels(data, participant).join("、")}
               </td>
               <td>{participant.sendanTeaCount}</td>
-              <td>{transportLabel(participant)}</td>
+              <td>{transportLabel(participant, data)}</td>
               <td>{routeLabel(participant, data, "outbound")}</td>
               <td>{routeLabel(participant, data, "return")}</td>
               {canEdit && (
@@ -906,17 +957,6 @@ function Summary({ data, event }: { data: AppData; event: EventRecord }) {
           <p className="eyebrow">全伝道会</p>
           <h2>全体集計</h2>
         </div>
-        <div className="report-links">
-          <a href={`/reports/participants?eventId=${event.id}`} target="_blank">
-            参加者名簿
-          </a>
-          <a href={`/reports/roles?eventId=${event.id}`} target="_blank">
-            部署名簿
-          </a>
-          <a href={`/reports/shuttles?eventId=${event.id}`} target="_blank">
-            送迎名簿
-          </a>
-        </div>
       </div>
       <div className="stats">
         <div>
@@ -933,8 +973,10 @@ function Summary({ data, event }: { data: AppData; event: EventRecord }) {
         {data.shuttles.map((shuttle) => {
           const users = active.filter(
             (participant) =>
-              participant.outboundShuttleId === shuttle.id ||
-              participant.returnShuttleId === shuttle.id,
+              participant.transportType === "shuttle" &&
+              !participantHasRole(data, participant, "送迎ドライバー") &&
+              (participant.outboundShuttleId === shuttle.id ||
+                participant.returnShuttleId === shuttle.id),
           );
           return (
             <details key={shuttle.id} className="summary-item">
@@ -1032,9 +1074,15 @@ function ShuttleSelect({
   );
 }
 
-function transportLabel(participant: Participant) {
+function transportLabel(participant: Participant, data: AppData) {
+  if (
+    participant.transportType === "shuttle" &&
+    participantHasRole(data, participant, "送迎ドライバー")
+  ) {
+    return "";
+  }
   if (participant.transportType === "none") return "選択なし";
-  if (participant.transportType === "driver") return "ドライバー";
+  if (participant.transportType === "driver") return "車";
   if (participant.transportType === "passenger") return "同乗";
   return "送迎希望";
 }
@@ -1045,8 +1093,8 @@ function routeLabel(
   direction: "outbound" | "return",
 ) {
   if (
-    participant.transportType !== "shuttle" &&
-    !participantHasRole(data, participant, "送迎ドライバー")
+    participant.transportType !== "shuttle" ||
+    participantHasRole(data, participant, "送迎ドライバー")
   ) {
     const schedule = participant.carrierSchedule;
     if (!schedule) return "";

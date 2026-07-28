@@ -39,7 +39,8 @@ select {
 
 button,
 .primary-link,
-.report-links a {
+.report-links a,
+.tabs a {
   border: 1px solid var(--accent);
   background: #ffffff;
   color: var(--accent-strong);
@@ -194,6 +195,11 @@ legend {
 .tabs button.active {
   background: var(--accent);
   color: #ffffff;
+}
+
+.tabs a {
+  display: inline-flex;
+  align-items: center;
 }
 
 .panel {
@@ -444,12 +450,20 @@ tr.absent {
 
 .shuttle-report-row {
   line-height: 1.7;
-  margin: 6px 0;
+  margin: 10px 0;
+}
+
+.shuttle-report-row p {
+  margin: 0;
 }
 
 .shuttle-report-row strong {
   display: inline-block;
   margin-right: 8px;
+}
+
+.shuttle-passenger-list {
+  padding-left: 18px;
 }
 
 @media (max-width: 760px) {
