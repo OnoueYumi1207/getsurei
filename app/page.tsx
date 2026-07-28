@@ -958,6 +958,10 @@ function Summary({ data, event }: { data: AppData; event: EventRecord }) {
     (participant) => participant.eventId === event.id && !participant.isAbsent,
   );
   const drivers = active.filter((participant) => participant.transportType === "driver");
+  const sendanTeaTotal = active.reduce(
+    (total, participant) => total + participant.sendanTeaCount,
+    0,
+  );
   return (
     <section className="panel">
       <div className="section-head">
@@ -974,6 +978,10 @@ function Summary({ data, event }: { data: AppData; event: EventRecord }) {
         <div>
           <span>自家用車</span>
           <strong>{drivers.length}台</strong>
+        </div>
+        <div>
+          <span>仙丹茶</span>
+          <strong>{sendanTeaTotal}本</strong>
         </div>
       </div>
       <h3>送迎人数</h3>
