@@ -251,19 +251,28 @@ async function syncShuttles(d1: D1Database) {
   }
 }
 
-export async function appData() {
+export async function appData(requestedEventId?: number | null) {
   await initialize();
   const d1 = db();
-  const [groups, roles, shuttles, events, participants, participantRoles, schedules] =
+  const [groups, roles, shuttles, events] =
     await d1.batch([
       d1.prepare("SELECT id, name, editor_name AS editorName FROM groups ORDER BY id"),
       d1.prepare("SELECT id, name, sort_order AS sortOrder FROM roles WHERE is_active = 1 ORDER BY sort_order"),
       d1.prepare("SELECT id, direction, name, capacity, note, sort_order AS sortOrder FROM shuttle_options WHERE is_active = 1 ORDER BY direction, sort_order"),
       d1.prepare("SELECT id, name, event_date AS eventDate, month_label AS monthLabel FROM events ORDER BY event_date ASC"),
-      d1.prepare("SELECT id, event_id AS eventId, group_id AS groupId, name, is_absent AS isAbsent, sendan_tea_count AS sendanTeaCount, transport_type AS transportType, ride_driver_participant_id AS rideDriverParticipantId, outbound_shuttle_id AS outboundShuttleId, return_shuttle_id AS returnShuttleId, other_role_text AS otherRoleText, created_at AS createdAt, updated_at AS updatedAt FROM participants ORDER BY group_id, name"),
-      d1.prepare("SELECT participant_id AS participantId, role_id AS roleId FROM participant_roles"),
-      d1.prepare("SELECT participant_id AS participantId, outbound_date AS outboundDate, outbound_time AS outboundTime, return_date AS returnDate, return_time AS returnTime FROM carrier_schedules"),
     ]);
+  const eventRows = events.results ?? [];
+  const activeEventId =
+    eventRows.find((event) => event.id === requestedEventId)?.id ??
+    eventRows[0]?.id ??
+    null;
+  const [participants, participantRoles, schedules] = activeEventId
+    ? await d1.batch([
+        d1.prepare("SELECT id, event_id AS eventId, group_id AS groupId, name, is_absent AS isAbsent, sendan_tea_count AS sendanTeaCount, transport_type AS transportType, ride_driver_participant_id AS rideDriverParticipantId, outbound_shuttle_id AS outboundShuttleId, return_shuttle_id AS returnShuttleId, other_role_text AS otherRoleText, created_at AS createdAt, updated_at AS updatedAt FROM participants WHERE event_id = ? ORDER BY group_id, name").bind(activeEventId),
+        d1.prepare("SELECT participant_id AS participantId, role_id AS roleId FROM participant_roles WHERE participant_id IN (SELECT id FROM participants WHERE event_id = ?)").bind(activeEventId),
+        d1.prepare("SELECT participant_id AS participantId, outbound_date AS outboundDate, outbound_time AS outboundTime, return_date AS returnDate, return_time AS returnTime FROM carrier_schedules WHERE participant_id IN (SELECT id FROM participants WHERE event_id = ?)").bind(activeEventId),
+      ])
+    : [{ results: [] }, { results: [] }, { results: [] }];
   const user = await getChatGPTUser();
   const roleMap = new Map<number, number[]>();
   for (const row of participantRoles.results ?? []) {
@@ -287,7 +296,7 @@ export async function appData() {
     })),
     roles: roles.results ?? [],
     shuttles: shuttles.results ?? [],
-    events: events.results ?? [],
+    events: eventRows,
     participants: (participants.results ?? []).map((participant) => ({
       ...participant,
       isAbsent: Boolean(participant.isAbsent),

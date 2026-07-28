@@ -50,7 +50,7 @@ export default async function ReportPage({
 }) {
   const { type } = await params;
   const { eventId } = await searchParams;
-  const data = (await appData()) as unknown as Awaited<ReturnType<typeof appData>> &
+  const data = (await appData(Number(eventId))) as unknown as Awaited<ReturnType<typeof appData>> &
     ReportData;
   const event =
     data.events.find((item) => String(item.id) === eventId) ?? data.events[0];

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type Group = { id: number; name: string; editorName: string; editorNames: string[] };
 type Role = { id: number; name: string; sortOrder: number };
@@ -109,11 +109,13 @@ export default function Home() {
   const nameInputRef = useRef<HTMLInputElement>(null);
   const otherRoleInputRef = useRef<HTMLInputElement>(null);
 
-  async function loadData(nextEventId?: number | null) {
+  const loadData = useCallback(async (nextEventId?: number | null) => {
     setIsRefreshing(true);
     try {
       setLoadError("");
-      const response = await fetch("/api/app", { cache: "no-store" });
+      const requestedEventId = nextEventId ?? readStoredEventId();
+      const query = requestedEventId ? `?eventId=${requestedEventId}` : "";
+      const response = await fetch(`/api/app${query}`, { cache: "no-store" });
       const payload = (await response.json()) as AppData & ApiErrorResponse;
       if (!response.ok) {
         throw new Error(payload.error ?? "読み込みに失敗しました。");
@@ -153,13 +155,13 @@ export default function Home() {
     } finally {
       setIsRefreshing(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
     // Initial API hydration is the source of truth for this client view.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadData();
-  }, []);
+  }, [loadData]);
 
   useEffect(() => {
     if (editing) {
@@ -440,7 +442,11 @@ export default function Home() {
           行事
           <select
             value={selectedEventId ?? ""}
-            onChange={(event) => setSelectedEventId(Number(event.target.value))}
+            onChange={(event) => {
+              const nextEventId = Number(event.target.value);
+              setSelectedEventId(nextEventId);
+              loadData(nextEventId);
+            }}
           >
             {data.events.map((event) => (
               <option key={event.id} value={event.id}>
