@@ -430,6 +430,54 @@ tr.absent {
   padding-bottom: 4px;
 }
 
+.participants-report-table {
+  font-size: 13px;
+  table-layout: fixed;
+}
+
+.participants-report-table th:nth-child(1),
+.participants-report-table td:nth-child(1) {
+  width: 58px;
+}
+
+.participants-report-table th:nth-child(2),
+.participants-report-table td:nth-child(2) {
+  width: 90px;
+}
+
+.participants-report-table th:nth-child(3),
+.participants-report-table td:nth-child(3) {
+  width: auto;
+}
+
+.participants-report-table th:nth-child(4),
+.participants-report-table td:nth-child(4) {
+  text-align: center;
+  width: 44px;
+}
+
+.participants-report-table th:nth-child(5),
+.participants-report-table td:nth-child(5) {
+  width: 68px;
+}
+
+.participants-report-table th:nth-child(6),
+.participants-report-table td:nth-child(6),
+.participants-report-table th:nth-child(7),
+.participants-report-table td:nth-child(7) {
+  width: 90px;
+}
+
+.group-cell {
+  vertical-align: top;
+}
+
+.nowrap-cell,
+.route-cell {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 .department-report-table {
   table-layout: auto;
 }
@@ -514,5 +562,10 @@ tr.absent {
   th,
   td {
     padding: 6px;
+  }
+
+  .participants-report-table th,
+  .participants-report-table td {
+    padding: 4px 5px;
   }
 }

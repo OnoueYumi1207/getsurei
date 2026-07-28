@@ -85,7 +85,7 @@ function ParticipantsReport({
   return (
     <>
       <h2>参加者名簿</h2>
-      <table>
+      <table className="participants-report-table">
         <thead>
           <tr>
             <th>伝道会</th>
@@ -98,17 +98,23 @@ function ParticipantsReport({
           </tr>
         </thead>
         <tbody>
-          {active.map((participant) => (
-            <tr key={participant.id}>
-              <td>{groupName(data, participant.groupId)}</td>
-              <td>{participant.name}</td>
-              <td>{roleText(data, participant)}</td>
-              <td>{participant.sendanTeaCount}</td>
-              <td>{transportText(data, participant)}</td>
-              <td>{routeText(data, participant, "outbound")}</td>
-              <td>{routeText(data, participant, "return")}</td>
-            </tr>
-          ))}
+          {groupedParticipants(data, active).flatMap(({ group, participants }) =>
+            participants.map((participant, index) => (
+              <tr key={participant.id}>
+                {index === 0 && (
+                  <td rowSpan={participants.length} className="group-cell">
+                    {group.name}
+                  </td>
+                )}
+                <td>{participant.name}</td>
+                <td>{roleText(data, participant)}</td>
+                <td className="count-cell">{participant.sendanTeaCount}</td>
+                <td className="nowrap-cell">{transportText(data, participant)}</td>
+                <td className="route-cell">{routeText(data, participant, "outbound")}</td>
+                <td className="route-cell">{routeText(data, participant, "return")}</td>
+              </tr>
+            )),
+          )}
         </tbody>
       </table>
     </>
@@ -240,8 +246,13 @@ function transportText(data: ReportData, participant: ReportParticipant) {
   return "送迎希望";
 }
 
-function groupName(data: ReportData, groupId: number) {
-  return data.groups.find((group) => group.id === groupId)?.name ?? "";
+function groupedParticipants(data: ReportData, active: ReportParticipant[]) {
+  return data.groups
+    .map((group) => ({
+      group,
+      participants: active.filter((participant) => participant.groupId === group.id),
+    }))
+    .filter(({ participants }) => participants.length > 0);
 }
 
 function routeText(
