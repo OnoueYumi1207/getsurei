@@ -508,22 +508,16 @@ export default function Home() {
         </button>
         <a
           href={`/reports/participants?eventId=${selectedEvent.id}`}
-          target="_blank"
-          rel="noreferrer"
         >
           参加者名簿
         </a>
         <a
           href={`/reports/roles?eventId=${selectedEvent.id}`}
-          target="_blank"
-          rel="noreferrer"
         >
           部署名簿
         </a>
         <a
           href={`/reports/shuttles?eventId=${selectedEvent.id}`}
-          target="_blank"
-          rel="noreferrer"
         >
           送迎名簿
         </a>
