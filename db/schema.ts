@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 export const events = sqliteTable("events", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -32,36 +32,48 @@ export const shuttleOptions = sqliteTable("shuttle_options", {
   isActive: integer("is_active", { mode: "boolean" }).notNull(),
 });
 
-export const participants = sqliteTable("participants", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  eventId: integer("event_id").notNull(),
-  groupId: integer("group_id").notNull(),
-  name: text("name").notNull(),
-  isAbsent: integer("is_absent", { mode: "boolean" }).notNull(),
-  sendanTeaCount: integer("sendan_tea_count").notNull(),
-  transportType: text("transport_type", {
-    enum: ["none", "driver", "passenger", "shuttle"],
-  }).notNull(),
-  rideDriverParticipantId: integer("ride_driver_participant_id"),
-  outboundShuttleId: integer("outbound_shuttle_id"),
-  returnShuttleId: integer("return_shuttle_id"),
-  otherRoleText: text("other_role_text"),
-  stallRoleText: text("stall_role_text"),
-  createdAt: text("created_at").notNull(),
-  updatedAt: text("updated_at").notNull(),
-});
+export const participants = sqliteTable(
+  "participants",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    eventId: integer("event_id").notNull(),
+    groupId: integer("group_id").notNull(),
+    name: text("name").notNull(),
+    isAbsent: integer("is_absent", { mode: "boolean" }).notNull(),
+    sendanTeaCount: integer("sendan_tea_count").notNull(),
+    transportType: text("transport_type", {
+      enum: ["none", "driver", "passenger", "shuttle"],
+    }).notNull(),
+    rideDriverParticipantId: integer("ride_driver_participant_id"),
+    outboundShuttleId: integer("outbound_shuttle_id"),
+    returnShuttleId: integer("return_shuttle_id"),
+    otherRoleText: text("other_role_text"),
+    stallRoleText: text("stall_role_text"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [index("participants_event_idx").on(table.eventId)],
+);
 
-export const participantRoles = sqliteTable("participant_roles", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  participantId: integer("participant_id").notNull(),
-  roleId: integer("role_id").notNull(),
-});
+export const participantRoles = sqliteTable(
+  "participant_roles",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    participantId: integer("participant_id").notNull(),
+    roleId: integer("role_id").notNull(),
+  },
+  (table) => [index("participant_roles_participant_idx").on(table.participantId)],
+);
 
-export const carrierSchedules = sqliteTable("carrier_schedules", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  participantId: integer("participant_id").notNull(),
-  outboundDate: text("outbound_date"),
-  outboundTime: text("outbound_time"),
-  returnDate: text("return_date"),
-  returnTime: text("return_time"),
-});
+export const carrierSchedules = sqliteTable(
+  "carrier_schedules",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    participantId: integer("participant_id").notNull(),
+    outboundDate: text("outbound_date"),
+    outboundTime: text("outbound_time"),
+    returnDate: text("return_date"),
+    returnTime: text("return_time"),
+  },
+  (table) => [index("carrier_schedules_participant_idx").on(table.participantId)],
+);

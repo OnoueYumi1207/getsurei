@@ -280,14 +280,27 @@ async function masterData() {
 }
 
 async function loadMasterData() {
-  await initialize();
   const d1 = db();
-  const [groups, roles, shuttles, events] = await d1.batch([
-    d1.prepare("SELECT id, name, editor_name AS editorName FROM groups ORDER BY id"),
-    d1.prepare("SELECT id, name, sort_order AS sortOrder FROM roles WHERE is_active = 1 ORDER BY sort_order"),
-    d1.prepare("SELECT id, direction, name, capacity, note, sort_order AS sortOrder FROM shuttle_options WHERE is_active = 1 ORDER BY direction, sort_order"),
-    d1.prepare("SELECT id, name, event_date AS eventDate, month_label AS monthLabel FROM events ORDER BY event_date ASC"),
-  ]);
+  let groups;
+  let roles;
+  let shuttles;
+  let events;
+  try {
+    [groups, roles, shuttles, events] = await d1.batch([
+      d1.prepare("SELECT id, name, editor_name AS editorName FROM groups ORDER BY id"),
+      d1.prepare("SELECT id, name, sort_order AS sortOrder FROM roles WHERE is_active = 1 ORDER BY sort_order"),
+      d1.prepare("SELECT id, direction, name, capacity, note, sort_order AS sortOrder FROM shuttle_options WHERE is_active = 1 ORDER BY direction, sort_order"),
+      d1.prepare("SELECT id, name, event_date AS eventDate, month_label AS monthLabel FROM events ORDER BY event_date ASC"),
+    ]);
+  } catch {
+    await initialize();
+    [groups, roles, shuttles, events] = await d1.batch([
+      d1.prepare("SELECT id, name, editor_name AS editorName FROM groups ORDER BY id"),
+      d1.prepare("SELECT id, name, sort_order AS sortOrder FROM roles WHERE is_active = 1 ORDER BY sort_order"),
+      d1.prepare("SELECT id, direction, name, capacity, note, sort_order AS sortOrder FROM shuttle_options WHERE is_active = 1 ORDER BY direction, sort_order"),
+      d1.prepare("SELECT id, name, event_date AS eventDate, month_label AS monthLabel FROM events ORDER BY event_date ASC"),
+    ]);
+  }
   return {
     groups: groups.results ?? [],
     roles: roles.results ?? [],
@@ -298,6 +311,7 @@ async function loadMasterData() {
 
 export async function appData(requestedEventId?: number | null) {
   const d1 = db();
+  const userPromise = getChatGPTUser();
   const { groups, roles, shuttles, events } = await masterData();
   const eventRows = events;
   const activeEventId =
@@ -311,7 +325,7 @@ export async function appData(requestedEventId?: number | null) {
         d1.prepare("SELECT participant_id AS participantId, outbound_date AS outboundDate, outbound_time AS outboundTime, return_date AS returnDate, return_time AS returnTime FROM carrier_schedules WHERE participant_id IN (SELECT id FROM participants WHERE event_id = ?)").bind(activeEventId),
       ])
     : [{ results: [] }, { results: [] }, { results: [] }];
-  const user = await getChatGPTUser();
+  const user = await userPromise;
   const roleMap = new Map<number, number[]>();
   for (const row of participantRoles.results ?? []) {
     const participantId = row.participantId as number;

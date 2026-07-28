@@ -22,6 +22,13 @@
       "when": 1785233313451,
       "tag": "0002_high_sebastian_shaw",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1785233753092,
+      "tag": "0003_loud_fantastic_four",
+      "breakpoints": true
     }
   ]
 }
