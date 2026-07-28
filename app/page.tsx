@@ -656,7 +656,15 @@ export default function Home() {
                             checked={checked}
                             onChange={(event) => {
                               const isChecked = event.target.checked;
-                              toggleRole(isChecked);
+                              setForm({
+                                ...form,
+                                attendanceOnly: isChecked ? false : form.attendanceOnly,
+                                isAbsent: isChecked ? false : form.isAbsent,
+                                otherRoleText: isChecked ? form.otherRoleText : "",
+                                roles: isChecked
+                                  ? [...form.roles, role.id]
+                                  : form.roles.filter((id) => id !== role.id),
+                              });
                               if (isChecked) {
                                 window.setTimeout(() => otherRoleInputRef.current?.focus(), 0);
                               }

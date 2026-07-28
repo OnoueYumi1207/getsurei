@@ -26,10 +26,10 @@ const ROLE_NAMES = [
   "泉珠卜占",
   "得道儀式",
   "出店",
-  "送迎ドライバー",
   "龍華水増量祈祷",
   "フリー",
   "その他",
+  "送迎ドライバー",
 ];
 
 const ROLE_RENAMES = new Map([
@@ -71,7 +71,7 @@ const SHUTTLES = [
   ["return", "最終", null, null],
 ] as const;
 
-const INITIALIZATION_VERSION = "2026-07-28-departments-2";
+const INITIALIZATION_VERSION = "2026-07-28-departments-3";
 
 let initializationPromise: Promise<void> | null = null;
 let masterDataPromise: Promise<{
