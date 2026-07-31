@@ -43,6 +43,7 @@ type Participant = {
 type AppData = {
   user: { displayName: string; email: string } | null;
   isAdmin: boolean;
+  canPublicEdit?: boolean;
   groups: Group[];
   roles: Role[];
   shuttles: Shuttle[];
@@ -199,10 +200,12 @@ export default function Home() {
     [data, selectedEventId, selectedGroupId],
   );
   const canEdit =
-    Boolean(data?.user && selectedGroup) &&
-    Boolean(
-      selectedGroup?.editorNames.includes(data?.user?.displayName ?? ""),
-    );
+    Boolean(selectedGroup) &&
+    (Boolean(data?.canPublicEdit) ||
+      Boolean(
+        data?.user &&
+          selectedGroup?.editorNames.includes(data.user.displayName),
+      ));
 
   function startEdit(participant: Participant | "new") {
     setEditing(participant);
@@ -452,6 +455,8 @@ export default function Home() {
               <strong>{data.user.displayName}</strong>
               <a href="/signout-with-chatgpt?return_to=/">ログアウト</a>
             </>
+          ) : data.canPublicEdit ? (
+            <span>お試し公開中：ログインなしで入力できます</span>
           ) : (
             <a className="primary-link" href="/signin-with-chatgpt?return_to=/">
               ログインして編集

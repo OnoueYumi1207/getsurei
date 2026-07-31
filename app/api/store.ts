@@ -52,6 +52,7 @@ const GROUPS = [
 ];
 
 const ADMIN_EDITORS = ["尾ノ上裕美"];
+const PRE_RELEASE_PUBLIC_EDITING = true;
 
 const PRESET_EVENTS = [
   ["2026-07-12", "7月"],
@@ -339,6 +340,7 @@ export async function appData(requestedEventId?: number | null) {
   return {
     user,
     isAdmin: Boolean(user && ADMIN_EDITORS.includes(user.displayName)),
+    canPublicEdit: PRE_RELEASE_PUBLIC_EDITING,
     groups: groups.map((group) => ({
       ...group,
       editorNames: [
@@ -361,6 +363,7 @@ export async function appData(requestedEventId?: number | null) {
 }
 
 export async function assertCanEdit(groupId: number) {
+  if (PRE_RELEASE_PUBLIC_EDITING) return;
   const user = await getChatGPTUser();
   if (!user) throw new Error("編集するにはログインしてください。");
   const { groups } = await masterData();
