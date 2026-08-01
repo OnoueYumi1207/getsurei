@@ -282,9 +282,11 @@ function ShuttlesReport({
                       {shuttle.note ? `（${shuttle.note}）` : ""}
                       】
                     </strong>
-                    {drivers.map((driver) => driver.name).join("、")}
+                    <span className="shuttle-role-label">ドライバー：</span>
+                    {drivers.map((driver) => driver.name).join("、") || "0"}
                   </p>
                   <p className="shuttle-passenger-list">
+                    <span className="shuttle-role-label">希望者：</span>
                     {users.map((user) => user.name).join("、") || "0"}
                   </p>
                 </div>

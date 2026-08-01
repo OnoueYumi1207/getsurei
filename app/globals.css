@@ -569,6 +569,11 @@ tr.absent {
   margin-right: 8px;
 }
 
+.shuttle-role-label {
+  font-weight: 700;
+  margin-right: 4px;
+}
+
 .shuttle-passenger-list {
   padding-left: 18px;
 }
