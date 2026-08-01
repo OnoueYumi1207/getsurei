@@ -197,9 +197,18 @@ legend {
   color: #ffffff;
 }
 
+.tabs a.active {
+  background: var(--accent);
+  color: #ffffff;
+}
+
 .tabs a {
   display: inline-flex;
   align-items: center;
+}
+
+.report-tabs {
+  margin-bottom: 14px;
 }
 
 .panel {
@@ -601,7 +610,8 @@ tr.absent {
     background: #ffffff;
   }
 
-  .print-actions {
+  .print-actions,
+  .report-tabs {
     display: none;
   }
 

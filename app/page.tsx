@@ -83,13 +83,17 @@ const blankForm = {
 };
 
 function readStoredEventId() {
-  const value = window.localStorage.getItem(selectedEventStorageKey);
+  const value =
+    new URLSearchParams(window.location.search).get("eventId") ??
+    window.localStorage.getItem(selectedEventStorageKey);
   const id = Number(value);
   return Number.isFinite(id) && id > 0 ? id : null;
 }
 
 function readStoredGroupId(): SelectedGroupId {
-  const value = window.localStorage.getItem(selectedGroupStorageKey);
+  const value =
+    new URLSearchParams(window.location.search).get("groupId") ??
+    window.localStorage.getItem(selectedGroupStorageKey);
   if (value === "summary") return "summary";
   const id = Number(value);
   return Number.isFinite(id) && id > 0 ? id : null;

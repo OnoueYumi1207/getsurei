@@ -39,6 +39,7 @@ type ReportData = {
   shuttles: ReportShuttle[];
   participants: ReportParticipant[];
 };
+type ReportType = "participants" | "roles" | "shuttles";
 
 export const dynamic = "force-dynamic";
 
@@ -64,6 +65,7 @@ export default async function ReportPage({
       <div className="print-actions">
         <PrintButton />
       </div>
+      <ReportTabs data={data} eventId={event.id} activeType={type} />
       <section className="report">
         <h1>{event.monthLabel} 明王招福護摩供</h1>
         <p>挙行日：{formatDate(event.eventDate)}</p>
@@ -72,6 +74,46 @@ export default async function ReportPage({
         {type === "shuttles" && <ShuttlesReport data={data} active={active} />}
       </section>
     </main>
+  );
+}
+
+function ReportTabs({
+  data,
+  eventId,
+  activeType,
+}: {
+  data: ReportData;
+  eventId: number;
+  activeType: ReportType;
+}) {
+  const eventQuery = `eventId=${eventId}`;
+  return (
+    <nav className="tabs report-tabs" aria-label="ページ">
+      {data.groups.map((group) => (
+        <a key={group.id} href={`/?${eventQuery}&groupId=${group.id}`}>
+          {group.name}
+        </a>
+      ))}
+      <a href={`/?${eventQuery}&groupId=summary`}>全体集計</a>
+      <a
+        className={activeType === "participants" ? "active" : ""}
+        href={`/reports/participants?${eventQuery}`}
+      >
+        参加者名簿
+      </a>
+      <a
+        className={activeType === "roles" ? "active" : ""}
+        href={`/reports/roles?${eventQuery}`}
+      >
+        部署名簿
+      </a>
+      <a
+        className={activeType === "shuttles" ? "active" : ""}
+        href={`/reports/shuttles?${eventQuery}`}
+      >
+        送迎名簿
+      </a>
+    </nav>
   );
 }
 
