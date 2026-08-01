@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type Group = { id: number; name: string; editorName: string; editorNames: string[] };
@@ -61,6 +62,17 @@ type ApiErrorResponse = { error?: string };
 
 const selectedEventStorageKey = "myoo-goma-selected-event-id";
 const selectedGroupStorageKey = "myoo-goma-selected-group-id";
+const groupPathByName = new Map([
+  ["大江戸", "ooedo"],
+  ["お台場", "odaiba"],
+  ["羽田", "haneda"],
+  ["かながわ", "kanagawa"],
+  ["富士山", "fujisan"],
+  ["駿天", "sunten"],
+  ["埼玉", "saitama"],
+  ["千葉", "chiba"],
+  ["山梨", "yamanashi"],
+]);
 
 const blankForm = {
   name: "",
@@ -90,13 +102,21 @@ function readStoredEventId() {
   return Number.isFinite(id) && id > 0 ? id : null;
 }
 
-function readStoredGroupId(): SelectedGroupId {
+function readStoredGroupId(groups: Group[] = []): SelectedGroupId {
+  const pathTab = window.location.pathname.replace(/^\/+|\/+$/g, "");
+  if (pathTab === "shuukei") return "summary";
+  const pathGroup = groups.find((group) => groupPath(group) === pathTab);
+  if (pathGroup) return pathGroup.id;
   const value =
     new URLSearchParams(window.location.search).get("groupId") ??
     window.localStorage.getItem(selectedGroupStorageKey);
   if (value === "summary") return "summary";
   const id = Number(value);
   return Number.isFinite(id) && id > 0 ? id : null;
+}
+
+function groupPath(group: Group) {
+  return groupPathByName.get(group.name) ?? `group-${group.id}`;
 }
 
 function sortParticipants(participants: Participant[]) {
@@ -147,7 +167,7 @@ export default function Home() {
         ) {
           return current;
         }
-        const stored = readStoredGroupId();
+        const stored = readStoredGroupId(payload.groups);
         if (
           stored === "summary" ||
           (stored && payload.groups.some((group) => group.id === stored))
@@ -457,14 +477,14 @@ export default function Home() {
           {data.user ? (
             <>
               <strong>{data.user.displayName}</strong>
-              <a href="/signout-with-chatgpt?return_to=/">ログアウト</a>
+              <Link href="/signout-with-chatgpt?return_to=/">ログアウト</Link>
             </>
           ) : data.canPublicEdit ? (
             <span>お試し公開中：ログインなしで入力できます</span>
           ) : (
-            <a className="primary-link" href="/signin-with-chatgpt?return_to=/">
+            <Link className="primary-link" href="/signin-with-chatgpt?return_to=/">
               ログインして編集
-            </a>
+            </Link>
           )}
         </div>
       </header>
@@ -501,32 +521,32 @@ export default function Home() {
 
       <nav className="tabs" aria-label="伝道会">
         {data.groups.map((group) => (
-          <button
+          <a
             key={group.id}
             className={selectedGroupId === group.id ? "active" : ""}
-            onClick={() => setSelectedGroupId(group.id)}
+            href={`/${groupPath(group)}?eventId=${selectedEvent.id}`}
           >
             {group.name}
-          </button>
+          </a>
         ))}
-        <button
+        <a
           className={selectedGroupId === "summary" ? "active" : ""}
-          onClick={() => setSelectedGroupId("summary")}
+          href={`/shuukei?eventId=${selectedEvent.id}`}
         >
           全体集計
-        </button>
+        </a>
         <a
-          href={`/reports/participants?eventId=${selectedEvent.id}`}
+          href={`/sanka?eventId=${selectedEvent.id}`}
         >
           参加者名簿
         </a>
         <a
-          href={`/reports/roles?eventId=${selectedEvent.id}`}
+          href={`/busho?eventId=${selectedEvent.id}`}
         >
           部署名簿
         </a>
         <a
-          href={`/reports/shuttles?eventId=${selectedEvent.id}`}
+          href={`/sougei?eventId=${selectedEvent.id}`}
         >
           送迎名簿
         </a>

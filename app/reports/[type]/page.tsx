@@ -40,6 +40,17 @@ type ReportData = {
   participants: ReportParticipant[];
 };
 type ReportType = "participants" | "roles" | "shuttles";
+const groupPathByName = new Map([
+  ["大江戸", "ooedo"],
+  ["お台場", "odaiba"],
+  ["羽田", "haneda"],
+  ["かながわ", "kanagawa"],
+  ["富士山", "fujisan"],
+  ["駿天", "sunten"],
+  ["埼玉", "saitama"],
+  ["千葉", "chiba"],
+  ["山梨", "yamanashi"],
+]);
 
 export const dynamic = "force-dynamic";
 
@@ -90,31 +101,35 @@ function ReportTabs({
   return (
     <nav className="tabs report-tabs" aria-label="ページ">
       {data.groups.map((group) => (
-        <a key={group.id} href={`/?${eventQuery}&groupId=${group.id}`}>
+        <a key={group.id} href={`/${groupPath(group)}?${eventQuery}`}>
           {group.name}
         </a>
       ))}
-      <a href={`/?${eventQuery}&groupId=summary`}>全体集計</a>
+      <a href={`/shuukei?${eventQuery}`}>全体集計</a>
       <a
         className={activeType === "participants" ? "active" : ""}
-        href={`/reports/participants?${eventQuery}`}
+        href={`/sanka?${eventQuery}`}
       >
         参加者名簿
       </a>
       <a
         className={activeType === "roles" ? "active" : ""}
-        href={`/reports/roles?${eventQuery}`}
+        href={`/busho?${eventQuery}`}
       >
         部署名簿
       </a>
       <a
         className={activeType === "shuttles" ? "active" : ""}
-        href={`/reports/shuttles?${eventQuery}`}
+        href={`/sougei?${eventQuery}`}
       >
         送迎名簿
       </a>
     </nav>
   );
+}
+
+function groupPath(group: ReportGroup) {
+  return groupPathByName.get(group.name) ?? `group-${group.id}`;
 }
 
 function ParticipantsReport({
