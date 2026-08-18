@@ -137,16 +137,23 @@ export default function Home() {
   const nameInputRef = useRef<HTMLInputElement>(null);
   const otherRoleInputRef = useRef<HTMLInputElement>(null);
 
-  function replaceTabUrl(nextGroupId: SelectedGroupId, eventId: number) {
+  function tabPath(nextGroupId: SelectedGroupId) {
     if (!nextGroupId) return;
     if (nextGroupId === "summary") {
-      window.history.pushState(null, "", `/shuukei?eventId=${eventId}`);
-      return;
+      return "/shuukei";
     }
     const group = data?.groups.find((item) => item.id === nextGroupId);
-    if (group) {
-      window.history.pushState(null, "", `/${groupPath(group)}?eventId=${eventId}`);
-    }
+    return group ? `/${groupPath(group)}` : undefined;
+  }
+
+  function replaceTabUrl(nextGroupId: SelectedGroupId, eventId: number) {
+    const path = tabPath(nextGroupId);
+    if (path) window.history.pushState(null, "", `${path}?eventId=${eventId}`);
+  }
+
+  function replaceCurrentEventUrl(eventId: number) {
+    const path = tabPath(selectedGroupId);
+    if (path) window.history.replaceState(null, "", `${path}?eventId=${eventId}`);
   }
 
   const loadData = useCallback(async (nextEventId?: number | null) => {
@@ -534,6 +541,7 @@ export default function Home() {
             onChange={(event) => {
               const nextEventId = Number(event.target.value);
               setSelectedEventId(nextEventId);
+              replaceCurrentEventUrl(nextEventId);
               loadData(nextEventId);
             }}
           >
