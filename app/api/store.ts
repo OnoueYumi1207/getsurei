@@ -52,7 +52,7 @@ const GROUPS = [
 ];
 
 const ADMIN_EDITORS = ["尾ノ上裕美"];
-const PRE_RELEASE_PUBLIC_EDITING = true;
+export const PRE_RELEASE_PUBLIC_EDITING = true;
 
 const PRESET_EVENTS = [
   ["2026-07-12", "7月"],
@@ -310,20 +310,33 @@ async function loadMasterData() {
   };
 }
 
-export async function appData(requestedEventId?: number | null) {
+export async function appData(
+  requestedEventId?: number | null,
+  requestedGroupId?: number | null,
+) {
   const d1 = db();
-  const userPromise = getChatGPTUser();
+  const userPromise = PRE_RELEASE_PUBLIC_EDITING
+    ? Promise.resolve(null)
+    : getChatGPTUser();
   const { groups, roles, shuttles, events } = await masterData();
   const eventRows = events;
   const activeEventId =
     eventRows.find((event) => event.id === requestedEventId)?.id ??
     eventRows[0]?.id ??
     null;
+  const activeGroupId =
+    groups.find((group) => group.id === requestedGroupId)?.id ?? null;
   const [participants, participantRoles, schedules] = activeEventId
     ? await d1.batch([
-        d1.prepare("SELECT id, event_id AS eventId, group_id AS groupId, name, is_absent AS isAbsent, sendan_tea_count AS sendanTeaCount, transport_type AS transportType, ride_driver_participant_id AS rideDriverParticipantId, outbound_shuttle_id AS outboundShuttleId, return_shuttle_id AS returnShuttleId, other_role_text AS otherRoleText, stall_role_text AS stallRoleText, created_at AS createdAt, updated_at AS updatedAt FROM participants WHERE event_id = ? ORDER BY group_id, name").bind(activeEventId),
-        d1.prepare("SELECT participant_id AS participantId, role_id AS roleId FROM participant_roles WHERE participant_id IN (SELECT id FROM participants WHERE event_id = ?)").bind(activeEventId),
-        d1.prepare("SELECT participant_id AS participantId, outbound_date AS outboundDate, outbound_time AS outboundTime, return_date AS returnDate, return_time AS returnTime FROM carrier_schedules WHERE participant_id IN (SELECT id FROM participants WHERE event_id = ?)").bind(activeEventId),
+        activeGroupId
+          ? d1.prepare("SELECT id, event_id AS eventId, group_id AS groupId, name, is_absent AS isAbsent, sendan_tea_count AS sendanTeaCount, transport_type AS transportType, ride_driver_participant_id AS rideDriverParticipantId, outbound_shuttle_id AS outboundShuttleId, return_shuttle_id AS returnShuttleId, other_role_text AS otherRoleText, stall_role_text AS stallRoleText, created_at AS createdAt, updated_at AS updatedAt FROM participants WHERE event_id = ? AND group_id = ? ORDER BY group_id, name").bind(activeEventId, activeGroupId)
+          : d1.prepare("SELECT id, event_id AS eventId, group_id AS groupId, name, is_absent AS isAbsent, sendan_tea_count AS sendanTeaCount, transport_type AS transportType, ride_driver_participant_id AS rideDriverParticipantId, outbound_shuttle_id AS outboundShuttleId, return_shuttle_id AS returnShuttleId, other_role_text AS otherRoleText, stall_role_text AS stallRoleText, created_at AS createdAt, updated_at AS updatedAt FROM participants WHERE event_id = ? ORDER BY group_id, name").bind(activeEventId),
+        activeGroupId
+          ? d1.prepare("SELECT participant_id AS participantId, role_id AS roleId FROM participant_roles WHERE participant_id IN (SELECT id FROM participants WHERE event_id = ? AND group_id = ?)").bind(activeEventId, activeGroupId)
+          : d1.prepare("SELECT participant_id AS participantId, role_id AS roleId FROM participant_roles WHERE participant_id IN (SELECT id FROM participants WHERE event_id = ?)").bind(activeEventId),
+        activeGroupId
+          ? d1.prepare("SELECT participant_id AS participantId, outbound_date AS outboundDate, outbound_time AS outboundTime, return_date AS returnDate, return_time AS returnTime FROM carrier_schedules WHERE participant_id IN (SELECT id FROM participants WHERE event_id = ? AND group_id = ?)").bind(activeEventId, activeGroupId)
+          : d1.prepare("SELECT participant_id AS participantId, outbound_date AS outboundDate, outbound_time AS outboundTime, return_date AS returnDate, return_time AS returnTime FROM carrier_schedules WHERE participant_id IN (SELECT id FROM participants WHERE event_id = ?)").bind(activeEventId),
       ])
     : [{ results: [] }, { results: [] }, { results: [] }];
   const user = await userPromise;

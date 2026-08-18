@@ -137,13 +137,25 @@ export default function Home() {
   const nameInputRef = useRef<HTMLInputElement>(null);
   const otherRoleInputRef = useRef<HTMLInputElement>(null);
 
+  function replaceTabUrl(nextGroupId: SelectedGroupId, eventId: number) {
+    if (!nextGroupId) return;
+    if (nextGroupId === "summary") {
+      window.history.pushState(null, "", `/shuukei?eventId=${eventId}`);
+      return;
+    }
+    const group = data?.groups.find((item) => item.id === nextGroupId);
+    if (group) {
+      window.history.pushState(null, "", `/${groupPath(group)}?eventId=${eventId}`);
+    }
+  }
+
   const loadData = useCallback(async (nextEventId?: number | null) => {
     setIsRefreshing(true);
     try {
       setLoadError("");
       const requestedEventId = nextEventId ?? readStoredEventId();
       const query = requestedEventId ? `?eventId=${requestedEventId}` : "";
-      const response = await fetch(`/api/app${query}`, { cache: "no-store" });
+      const response = await fetch(`/api/app${query}`);
       const payload = (await response.json()) as AppData & ApiErrorResponse;
       if (!response.ok) {
         throw new Error(payload.error ?? "読み込みに失敗しました。");
@@ -208,6 +220,28 @@ export default function Home() {
       window.localStorage.setItem(selectedGroupStorageKey, String(selectedGroupId));
     }
   }, [selectedGroupId]);
+
+  useEffect(() => {
+    function handlePopState() {
+      if (!data) return;
+      const nextGroupId = readStoredGroupId(data.groups);
+      if (
+        nextGroupId === "summary" ||
+        (nextGroupId && data.groups.some((group) => group.id === nextGroupId))
+      ) {
+        setSelectedGroupId(nextGroupId);
+      }
+    }
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [data]);
+
+  function switchTab(nextGroupId: SelectedGroupId) {
+    if (!selectedEvent || !nextGroupId) return;
+    setSelectedGroupId(nextGroupId);
+    setEditing(null);
+    replaceTabUrl(nextGroupId, selectedEvent.id);
+  }
 
   const selectedEvent = data?.events.find((event) => event.id === selectedEventId);
   const selectedGroup =
@@ -525,6 +559,10 @@ export default function Home() {
             key={group.id}
             className={selectedGroupId === group.id ? "active" : ""}
             href={`/${groupPath(group)}?eventId=${selectedEvent.id}`}
+            onClick={(event) => {
+              event.preventDefault();
+              switchTab(group.id);
+            }}
           >
             {group.name}
           </a>
@@ -532,6 +570,10 @@ export default function Home() {
         <a
           className={selectedGroupId === "summary" ? "active" : ""}
           href={`/shuukei?eventId=${selectedEvent.id}`}
+          onClick={(event) => {
+            event.preventDefault();
+            switchTab("summary");
+          }}
         >
           全体集計
         </a>
