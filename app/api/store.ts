@@ -315,9 +315,7 @@ export async function appData(
   requestedGroupId?: number | null,
 ) {
   const d1 = db();
-  const userPromise = PRE_RELEASE_PUBLIC_EDITING
-    ? Promise.resolve(null)
-    : getChatGPTUser();
+  const userPromise = getChatGPTUser();
   const { groups, roles, shuttles, events } = await masterData();
   const eventRows = events;
   const activeEventId =

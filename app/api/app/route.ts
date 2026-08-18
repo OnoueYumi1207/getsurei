@@ -1,4 +1,4 @@
-import { appData, PRE_RELEASE_PUBLIC_EDITING } from "../store";
+import { appData } from "../store";
 
 export async function GET(request: Request) {
   try {
@@ -11,12 +11,7 @@ export async function GET(request: Request) {
         Number.isFinite(groupId) ? groupId : null,
       ),
     );
-    response.headers.set(
-      "Cache-Control",
-      PRE_RELEASE_PUBLIC_EDITING
-        ? "public, max-age=10, stale-while-revalidate=20"
-        : "no-store",
-    );
+    response.headers.set("Cache-Control", "no-store");
     return response;
   } catch (error) {
     return Response.json(

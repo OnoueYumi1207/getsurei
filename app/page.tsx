@@ -154,8 +154,11 @@ export default function Home() {
     try {
       setLoadError("");
       const requestedEventId = nextEventId ?? readStoredEventId();
-      const query = requestedEventId ? `?eventId=${requestedEventId}` : "";
-      const response = await fetch(`/api/app${query}`);
+      const query = new URLSearchParams({ t: String(Date.now()) });
+      if (requestedEventId) query.set("eventId", String(requestedEventId));
+      const response = await fetch(`/api/app?${query.toString()}`, {
+        cache: "no-store",
+      });
       const payload = (await response.json()) as AppData & ApiErrorResponse;
       if (!response.ok) {
         throw new Error(payload.error ?? "読み込みに失敗しました。");
