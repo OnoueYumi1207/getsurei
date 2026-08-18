@@ -502,6 +502,14 @@ export async function copyPreviousEvent(targetEventId: number) {
     .first<{ id: number }>();
   if (!previous) throw new Error("前月の行事がありません。");
 
+  const source = await d1
+    .prepare("SELECT id, group_id AS groupId, name, sendan_tea_count AS sendanTeaCount, transport_type AS transportType, outbound_shuttle_id AS outboundShuttleId, return_shuttle_id AS returnShuttleId, other_role_text AS otherRoleText, stall_role_text AS stallRoleText FROM participants WHERE event_id = ? ORDER BY id")
+    .bind(previous.id)
+    .all<Record<string, unknown>>();
+  if (!source.results?.length) {
+    throw new Error("前月の参加者データが空のため、コピーを中止しました。");
+  }
+
   const existingTarget = await d1
     .prepare("SELECT id FROM participants WHERE event_id = ?")
     .bind(target.id)
@@ -514,10 +522,6 @@ export async function copyPreviousEvent(targetEventId: number) {
     ]);
   }
 
-  const source = await d1
-    .prepare("SELECT id, group_id AS groupId, name, sendan_tea_count AS sendanTeaCount, transport_type AS transportType, outbound_shuttle_id AS outboundShuttleId, return_shuttle_id AS returnShuttleId, other_role_text AS otherRoleText, stall_role_text AS stallRoleText FROM participants WHERE event_id = ? ORDER BY id")
-    .bind(previous.id)
-    .all<Record<string, unknown>>();
   const oldToNew = new Map<number, number>();
   for (const participant of source.results ?? []) {
     const result = await d1
