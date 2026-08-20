@@ -25,6 +25,8 @@ type ReportParticipant = {
   returnShuttleId: number | null;
   otherRoleText: string;
   stallRoleText: string;
+  nariGomaAltar: string | null;
+  nariGomaDuties: string[];
   roles: number[];
   carrierSchedule: {
     outboundDate: string;
@@ -40,6 +42,20 @@ type ReportData = {
   participants: ReportParticipant[];
 };
 type ReportType = "participants" | "roles" | "shuttles";
+const nariGomaAltars = [
+  ["any", "どれでも可"],
+  ["wood", "木"],
+  ["fire", "火"],
+  ["earth", "土"],
+  ["metal", "金"],
+  ["water", "水"],
+] as const;
+const nariGomaDuties = [
+  ["any", "どれでも可"],
+  ["saishu", "斎主"],
+  ["assistant", "補佐"],
+  ["reisa", "霊査"],
+] as const;
 const groupPathByName = new Map([
   ["大江戸", "ooedo"],
   ["お台場", "odaiba"],
@@ -78,10 +94,10 @@ export default async function ReportPage({
       </div>
       <ReportTabs data={data} eventId={event.id} activeType={type} />
       <section className="report">
-        <h1>{event.monthLabel} 明王招福護摩供</h1>
+        <h1>{event.monthLabel} {event.name}</h1>
         <p>挙行日：{formatDate(event.eventDate)}</p>
         {type === "participants" && <ParticipantsReport data={data} active={active} />}
-        {type === "roles" && <RolesReport data={data} active={active} />}
+        {type === "roles" && <RolesReport data={data} active={active} event={event} />}
         {type === "shuttles" && <ShuttlesReport data={data} active={active} />}
       </section>
     </main>
@@ -130,6 +146,10 @@ function ReportTabs({
 
 function groupPath(group: ReportGroup) {
   return groupPathByName.get(group.name) ?? `group-${group.id}`;
+}
+
+function isTenchiEvent(event?: { name: string }) {
+  return event?.name === "天地免劫修法";
 }
 
 function ParticipantsReport({
@@ -220,16 +240,20 @@ function ParticipantsReport({
 function RolesReport({
   data,
   active,
+  event,
 }: {
   data: ReportData;
   active: ReportParticipant[];
+  event: { name: string };
 }) {
   return (
     <>
       <h2>部署名簿</h2>
       <table className="department-report-table">
         <tbody>
-          {data.roles.map((role) => {
+          {data.roles
+            .filter((role) => role.name !== "鳴り護摩" || isTenchiEvent(event))
+            .map((role) => {
             const members = active.filter((participant) => participant.roles.includes(role.id));
             return (
               <tr key={role.id}>
@@ -244,6 +268,8 @@ function RolesReport({
                               ? `${member.name}（${member.otherRoleText}）`
                               : role.name === "出店" && member.stallRoleText
                                 ? `${member.name}（${member.stallRoleText}）`
+                              : role.name === "鳴り護摩"
+                                ? `${member.name}（${nariGomaText(member)}）`
                               : member.name,
                         )
                         .join("、")
@@ -324,11 +350,28 @@ function roleText(data: ReportData, participant: ReportParticipant) {
         if (name === "出店" && participant.stallRoleText) {
           return `出店（${participant.stallRoleText}）`;
         }
+        if (name === "鳴り護摩") {
+          return `鳴り護摩（${nariGomaText(participant)}）`;
+        }
         return name;
       })
       .filter(Boolean)
       .join("、")
   );
+}
+
+function nariGomaText(participant: Pick<ReportParticipant, "nariGomaAltar" | "nariGomaDuties">) {
+  const altar =
+    nariGomaAltars.find(([value]) => value === participant.nariGomaAltar)?.[1] ??
+    "どれでも可";
+  const duties = participant.nariGomaDuties?.length
+    ? participant.nariGomaDuties
+    : ["any"];
+  const dutyText = duties
+    .map((duty) => nariGomaDuties.find(([value]) => value === duty)?.[1])
+    .filter(Boolean)
+    .join("・");
+  return `${altar} / ${dutyText || "どれでも可"}`;
 }
 
 function transportText(data: ReportData, participant: ReportParticipant) {

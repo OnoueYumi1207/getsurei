@@ -27,6 +27,7 @@ const ROLE_NAMES = [
   "得道儀式",
   "出店",
   "龍華水増量祈祷",
+  "鳴り護摩",
   "フリー",
   "その他",
   "送迎ドライバー",
@@ -55,12 +56,12 @@ const ADMIN_EDITORS = ["尾ノ上裕美"];
 export const PRE_RELEASE_PUBLIC_EDITING = true;
 
 const PRESET_EVENTS = [
-  ["2026-07-12", "7月"],
-  ["2026-08-09", "8月"],
-  ["2026-09-13", "9月"],
-  ["2026-10-11", "10月"],
-  ["2026-11-08", "11月"],
-  ["2026-12-13", "12月"],
+  ["2026-07-12", "7月", "明王招福護摩供"],
+  ["2026-08-09", "8月", "明王招福護摩供"],
+  ["2026-09-13", "9月", "天地免劫修法"],
+  ["2026-10-11", "10月", "明王招福護摩供"],
+  ["2026-11-08", "11月", "明王招福護摩供"],
+  ["2026-12-13", "12月", "明王招福護摩供"],
 ] as const;
 
 const SHUTTLES = [
@@ -72,7 +73,7 @@ const SHUTTLES = [
   ["return", "最終", null, null],
 ] as const;
 
-const INITIALIZATION_VERSION = "2026-07-28-stall-role-1";
+const INITIALIZATION_VERSION = "2026-08-20-nari-goma-1";
 
 let initializationPromise: Promise<void> | null = null;
 let masterDataPromise: Promise<{
@@ -96,6 +97,8 @@ export type ParticipantPayload = {
   usesShuttleSelection?: boolean;
   otherRoleText: string;
   stallRoleText: string;
+  nariGomaAltar: string | null;
+  nariGomaDuties: string[];
   roles: number[];
   carrierSchedule: {
     outboundDate: string;
@@ -136,7 +139,7 @@ async function runInitialize() {
     d1.prepare("CREATE TABLE IF NOT EXISTS groups (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, editor_name TEXT NOT NULL)"),
     d1.prepare("CREATE TABLE IF NOT EXISTS roles (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, sort_order INTEGER NOT NULL, is_active INTEGER NOT NULL)"),
     d1.prepare("CREATE TABLE IF NOT EXISTS shuttle_options (id INTEGER PRIMARY KEY AUTOINCREMENT, direction TEXT NOT NULL, name TEXT NOT NULL, capacity INTEGER, note TEXT, sort_order INTEGER NOT NULL, is_active INTEGER NOT NULL)"),
-    d1.prepare("CREATE TABLE IF NOT EXISTS participants (id INTEGER PRIMARY KEY AUTOINCREMENT, event_id INTEGER NOT NULL, group_id INTEGER NOT NULL, name TEXT NOT NULL, is_absent INTEGER NOT NULL, sendan_tea_count INTEGER NOT NULL, transport_type TEXT NOT NULL, ride_driver_participant_id INTEGER, outbound_shuttle_id INTEGER, return_shuttle_id INTEGER, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)"),
+    d1.prepare("CREATE TABLE IF NOT EXISTS participants (id INTEGER PRIMARY KEY AUTOINCREMENT, event_id INTEGER NOT NULL, group_id INTEGER NOT NULL, name TEXT NOT NULL, is_absent INTEGER NOT NULL, sendan_tea_count INTEGER NOT NULL, transport_type TEXT NOT NULL, ride_driver_participant_id INTEGER, outbound_shuttle_id INTEGER, return_shuttle_id INTEGER, other_role_text TEXT, stall_role_text TEXT, nari_goma_altar TEXT, nari_goma_duties TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)"),
     d1.prepare("CREATE TABLE IF NOT EXISTS participant_roles (id INTEGER PRIMARY KEY AUTOINCREMENT, participant_id INTEGER NOT NULL, role_id INTEGER NOT NULL)"),
     d1.prepare("CREATE TABLE IF NOT EXISTS carrier_schedules (id INTEGER PRIMARY KEY AUTOINCREMENT, participant_id INTEGER NOT NULL UNIQUE, outbound_date TEXT, outbound_time TEXT, return_date TEXT, return_time TEXT)"),
   ]);
@@ -156,6 +159,8 @@ async function runInitialize() {
         throw error;
       }
     });
+  await addParticipantColumn(d1, "nari_goma_altar TEXT");
+  await addParticipantColumn(d1, "nari_goma_duties TEXT");
 
   const counts = await d1.batch([
     d1.prepare("SELECT COUNT(*) AS count FROM groups"),
@@ -189,16 +194,21 @@ async function runInitialize() {
   } else {
     await syncShuttles(d1);
   }
-  for (const [eventDate, monthLabel] of PRESET_EVENTS) {
+  for (const [eventDate, monthLabel, eventName] of PRESET_EVENTS) {
     const existing = await d1
       .prepare("SELECT id FROM events WHERE event_date = ?")
       .bind(eventDate)
-      .first();
+      .first<{ id: number }>();
+    const now = new Date().toISOString();
     if (!existing) {
-      const now = new Date().toISOString();
       await d1
         .prepare("INSERT INTO events (name, event_date, month_label, created_at, updated_at) VALUES (?, ?, ?, ?, ?)")
-        .bind("明王招福護摩供", eventDate, monthLabel, now, now)
+        .bind(eventName, eventDate, monthLabel, now, now)
+        .run();
+    } else {
+      await d1
+        .prepare("UPDATE events SET name = ?, month_label = ?, updated_at = ? WHERE id = ?")
+        .bind(eventName, monthLabel, now, existing.id)
         .run();
     }
   }
@@ -206,6 +216,18 @@ async function runInitialize() {
     .prepare("INSERT OR REPLACE INTO system_meta (key, value) VALUES ('initialization_version', ?)")
     .bind(INITIALIZATION_VERSION)
     .run();
+  masterDataPromise = null;
+}
+
+async function addParticipantColumn(d1: D1Database, columnSql: string) {
+  await d1
+    .prepare(`ALTER TABLE participants ADD COLUMN ${columnSql}`)
+    .run()
+    .catch((error) => {
+      if (!(error instanceof Error) || !error.message.includes("duplicate column")) {
+        throw error;
+      }
+    });
 }
 
 async function syncRoles(d1: D1Database) {
@@ -314,6 +336,7 @@ export async function appData(
   requestedEventId?: number | null,
   requestedGroupId?: number | null,
 ) {
+  await initialize();
   const d1 = db();
   const userPromise = getChatGPTUser();
   const { groups, roles, shuttles, events } = await masterData();
@@ -327,8 +350,8 @@ export async function appData(
   const [participants, participantRoles, schedules] = activeEventId
     ? await d1.batch([
         activeGroupId
-          ? d1.prepare("SELECT id, event_id AS eventId, group_id AS groupId, name, is_absent AS isAbsent, sendan_tea_count AS sendanTeaCount, transport_type AS transportType, ride_driver_participant_id AS rideDriverParticipantId, outbound_shuttle_id AS outboundShuttleId, return_shuttle_id AS returnShuttleId, other_role_text AS otherRoleText, stall_role_text AS stallRoleText, created_at AS createdAt, updated_at AS updatedAt FROM participants WHERE event_id = ? AND group_id = ? ORDER BY group_id, name").bind(activeEventId, activeGroupId)
-          : d1.prepare("SELECT id, event_id AS eventId, group_id AS groupId, name, is_absent AS isAbsent, sendan_tea_count AS sendanTeaCount, transport_type AS transportType, ride_driver_participant_id AS rideDriverParticipantId, outbound_shuttle_id AS outboundShuttleId, return_shuttle_id AS returnShuttleId, other_role_text AS otherRoleText, stall_role_text AS stallRoleText, created_at AS createdAt, updated_at AS updatedAt FROM participants WHERE event_id = ? ORDER BY group_id, name").bind(activeEventId),
+          ? d1.prepare("SELECT id, event_id AS eventId, group_id AS groupId, name, is_absent AS isAbsent, sendan_tea_count AS sendanTeaCount, transport_type AS transportType, ride_driver_participant_id AS rideDriverParticipantId, outbound_shuttle_id AS outboundShuttleId, return_shuttle_id AS returnShuttleId, other_role_text AS otherRoleText, stall_role_text AS stallRoleText, nari_goma_altar AS nariGomaAltar, nari_goma_duties AS nariGomaDuties, created_at AS createdAt, updated_at AS updatedAt FROM participants WHERE event_id = ? AND group_id = ? ORDER BY group_id, name").bind(activeEventId, activeGroupId)
+          : d1.prepare("SELECT id, event_id AS eventId, group_id AS groupId, name, is_absent AS isAbsent, sendan_tea_count AS sendanTeaCount, transport_type AS transportType, ride_driver_participant_id AS rideDriverParticipantId, outbound_shuttle_id AS outboundShuttleId, return_shuttle_id AS returnShuttleId, other_role_text AS otherRoleText, stall_role_text AS stallRoleText, nari_goma_altar AS nariGomaAltar, nari_goma_duties AS nariGomaDuties, created_at AS createdAt, updated_at AS updatedAt FROM participants WHERE event_id = ? ORDER BY group_id, name").bind(activeEventId),
         activeGroupId
           ? d1.prepare("SELECT participant_id AS participantId, role_id AS roleId FROM participant_roles WHERE participant_id IN (SELECT id FROM participants WHERE event_id = ? AND group_id = ?)").bind(activeEventId, activeGroupId)
           : d1.prepare("SELECT participant_id AS participantId, role_id AS roleId FROM participant_roles WHERE participant_id IN (SELECT id FROM participants WHERE event_id = ?)").bind(activeEventId),
@@ -367,6 +390,8 @@ export async function appData(
       isAbsent: Boolean(participant.isAbsent),
       otherRoleText: participant.otherRoleText ?? "",
       stallRoleText: participant.stallRoleText ?? "",
+      nariGomaAltar: normalizeNariGomaAltar(participant.nariGomaAltar),
+      nariGomaDuties: normalizeNariGomaDuties(participant.nariGomaDuties),
       roles: roleMap.get(participant.id as number) ?? [],
       carrierSchedule: normalizeSchedule(scheduleMap.get(participant.id as number)),
     })),
@@ -397,21 +422,28 @@ async function assertAdmin() {
 }
 
 export async function saveParticipant(payload: ParticipantPayload) {
+  await initialize();
   await assertCanEdit(payload.groupId);
   const now = new Date().toISOString();
   const d1 = db();
   const clean = normalizePayload(payload);
+  const { roles } = await masterData();
+  const hasNariGomaRole = clean.roles.some(
+    (roleId) => roles.some((role) => role.id === roleId && role.name === "鳴り護摩"),
+  );
+  const nariGomaAltar = hasNariGomaRole ? clean.nariGomaAltar : null;
+  const nariGomaDuties = hasNariGomaRole ? JSON.stringify(clean.nariGomaDuties) : null;
 
   let participantId = clean.id;
   if (participantId) {
     await d1
-      .prepare("UPDATE participants SET name = ?, is_absent = ?, sendan_tea_count = ?, transport_type = ?, ride_driver_participant_id = ?, outbound_shuttle_id = ?, return_shuttle_id = ?, other_role_text = ?, stall_role_text = ?, updated_at = ? WHERE id = ? AND event_id = ? AND group_id = ?")
-      .bind(clean.name, clean.isAbsent ? 1 : 0, clean.sendanTeaCount, clean.transportType, clean.rideDriverParticipantId, clean.outboundShuttleId, clean.returnShuttleId, clean.otherRoleText, clean.stallRoleText, now, participantId, clean.eventId, clean.groupId)
+      .prepare("UPDATE participants SET name = ?, is_absent = ?, sendan_tea_count = ?, transport_type = ?, ride_driver_participant_id = ?, outbound_shuttle_id = ?, return_shuttle_id = ?, other_role_text = ?, stall_role_text = ?, nari_goma_altar = ?, nari_goma_duties = ?, updated_at = ? WHERE id = ? AND event_id = ? AND group_id = ?")
+      .bind(clean.name, clean.isAbsent ? 1 : 0, clean.sendanTeaCount, clean.transportType, clean.rideDriverParticipantId, clean.outboundShuttleId, clean.returnShuttleId, clean.otherRoleText, clean.stallRoleText, nariGomaAltar, nariGomaDuties, now, participantId, clean.eventId, clean.groupId)
       .run();
   } else {
     const result = await d1
-      .prepare("INSERT INTO participants (event_id, group_id, name, is_absent, sendan_tea_count, transport_type, ride_driver_participant_id, outbound_shuttle_id, return_shuttle_id, other_role_text, stall_role_text, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-      .bind(clean.eventId, clean.groupId, clean.name, clean.isAbsent ? 1 : 0, clean.sendanTeaCount, clean.transportType, clean.rideDriverParticipantId, clean.outboundShuttleId, clean.returnShuttleId, clean.otherRoleText, clean.stallRoleText, now, now)
+      .prepare("INSERT INTO participants (event_id, group_id, name, is_absent, sendan_tea_count, transport_type, ride_driver_participant_id, outbound_shuttle_id, return_shuttle_id, other_role_text, stall_role_text, nari_goma_altar, nari_goma_duties, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+      .bind(clean.eventId, clean.groupId, clean.name, clean.isAbsent ? 1 : 0, clean.sendanTeaCount, clean.transportType, clean.rideDriverParticipantId, clean.outboundShuttleId, clean.returnShuttleId, clean.otherRoleText, clean.stallRoleText, nariGomaAltar, nariGomaDuties, now, now)
       .run();
     participantId = result.meta.last_row_id;
   }
@@ -501,7 +533,7 @@ export async function copyPreviousEvent(targetEventId: number) {
   if (!previous) throw new Error("前月の行事がありません。");
 
   const source = await d1
-    .prepare("SELECT id, group_id AS groupId, name, sendan_tea_count AS sendanTeaCount, transport_type AS transportType, outbound_shuttle_id AS outboundShuttleId, return_shuttle_id AS returnShuttleId, other_role_text AS otherRoleText, stall_role_text AS stallRoleText FROM participants WHERE event_id = ? ORDER BY id")
+    .prepare("SELECT id, group_id AS groupId, name, sendan_tea_count AS sendanTeaCount, transport_type AS transportType, outbound_shuttle_id AS outboundShuttleId, return_shuttle_id AS returnShuttleId, other_role_text AS otherRoleText, stall_role_text AS stallRoleText, nari_goma_altar AS nariGomaAltar, nari_goma_duties AS nariGomaDuties FROM participants WHERE event_id = ? ORDER BY id")
     .bind(previous.id)
     .all<Record<string, unknown>>();
   if (!source.results?.length) {
@@ -523,8 +555,8 @@ export async function copyPreviousEvent(targetEventId: number) {
   const oldToNew = new Map<number, number>();
   for (const participant of source.results ?? []) {
     const result = await d1
-      .prepare("INSERT INTO participants (event_id, group_id, name, is_absent, sendan_tea_count, transport_type, ride_driver_participant_id, outbound_shuttle_id, return_shuttle_id, other_role_text, stall_role_text, created_at, updated_at) VALUES (?, ?, ?, 0, ?, ?, NULL, ?, ?, ?, ?, ?, ?)")
-      .bind(target.id, participant.groupId, participant.name, participant.sendanTeaCount, participant.transportType, participant.outboundShuttleId, participant.returnShuttleId, participant.otherRoleText ?? "", participant.stallRoleText ?? "", now, now)
+      .prepare("INSERT INTO participants (event_id, group_id, name, is_absent, sendan_tea_count, transport_type, ride_driver_participant_id, outbound_shuttle_id, return_shuttle_id, other_role_text, stall_role_text, nari_goma_altar, nari_goma_duties, created_at, updated_at) VALUES (?, ?, ?, 0, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?)")
+      .bind(target.id, participant.groupId, participant.name, participant.sendanTeaCount, participant.transportType, participant.outboundShuttleId, participant.returnShuttleId, participant.otherRoleText ?? "", participant.stallRoleText ?? "", participant.nariGomaAltar ?? null, participant.nariGomaDuties ?? null, now, now)
       .run();
     oldToNew.set(participant.id as number, result.meta.last_row_id);
   }
@@ -564,8 +596,37 @@ function normalizePayload(payload: ParticipantPayload) {
       usesShuttleSelection ? payload.returnShuttleId : null,
     otherRoleText: payload.otherRoleText?.trim() ?? "",
     stallRoleText: payload.stallRoleText?.trim() ?? "",
+    nariGomaAltar: normalizeNariGomaAltar(payload.nariGomaAltar),
+    nariGomaDuties: normalizeNariGomaDuties(payload.nariGomaDuties),
     roles,
   };
+}
+
+const NARI_GOMA_ALTARS = ["any", "wood", "fire", "earth", "metal", "water"];
+const NARI_GOMA_DUTIES = ["any", "saishu", "assistant", "reisa"];
+
+function normalizeNariGomaAltar(value: unknown) {
+  return typeof value === "string" && NARI_GOMA_ALTARS.includes(value)
+    ? value
+    : null;
+}
+
+function normalizeNariGomaDuties(value: unknown) {
+  let duties: unknown[] = [];
+  if (Array.isArray(value)) {
+    duties = value;
+  } else if (typeof value === "string" && value.trim()) {
+    try {
+      const parsed = JSON.parse(value);
+      duties = Array.isArray(parsed) ? parsed : value.split(",");
+    } catch {
+      duties = value.split(",");
+    }
+  }
+  const normalized = Array.from(
+    new Set(duties.filter((duty): duty is string => typeof duty === "string" && NARI_GOMA_DUTIES.includes(duty))),
+  );
+  return normalized.includes("any") ? ["any"] : normalized;
 }
 
 function normalizeSchedule(row: unknown) {

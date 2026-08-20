@@ -32,6 +32,8 @@ type Participant = {
   returnShuttleId: number | null;
   otherRoleText: string;
   stallRoleText: string;
+  nariGomaAltar: string | null;
+  nariGomaDuties: string[];
   roles: number[];
   carrierSchedule: {
     outboundDate: string;
@@ -62,6 +64,20 @@ type ApiErrorResponse = { error?: string };
 
 const selectedEventStorageKey = "myoo-goma-selected-event-id";
 const selectedGroupStorageKey = "myoo-goma-selected-group-id";
+const nariGomaAltars = [
+  ["any", "どれでも可"],
+  ["wood", "木"],
+  ["fire", "火"],
+  ["earth", "土"],
+  ["metal", "金"],
+  ["water", "水"],
+] as const;
+const nariGomaDuties = [
+  ["any", "どれでも可"],
+  ["saishu", "斎主"],
+  ["assistant", "補佐"],
+  ["reisa", "霊査"],
+] as const;
 const groupPathByName = new Map([
   ["大江戸", "ooedo"],
   ["お台場", "odaiba"],
@@ -85,6 +101,8 @@ const blankForm = {
   returnShuttleId: null as number | null,
   otherRoleText: "",
   stallRoleText: "",
+  nariGomaAltar: "any" as string | null,
+  nariGomaDuties: ["any"] as string[],
   roles: [] as number[],
   carrierSchedule: {
     outboundDate: "",
@@ -117,6 +135,10 @@ function readStoredGroupId(groups: Group[] = []): SelectedGroupId {
 
 function groupPath(group: Group) {
   return groupPathByName.get(group.name) ?? `group-${group.id}`;
+}
+
+function isTenchiEvent(event?: EventRecord) {
+  return event?.name === "天地免劫修法";
 }
 
 function sortParticipants(participants: Participant[]) {
@@ -267,6 +289,10 @@ export default function Home() {
       ) ?? [],
     [data, selectedEventId, selectedGroupId],
   );
+  const visibleRoles =
+    data?.roles.filter(
+      (role) => role.name !== "鳴り護摩" || isTenchiEvent(selectedEvent),
+    ) ?? [];
   const canEdit =
     Boolean(selectedGroup) &&
     (Boolean(data?.canPublicEdit) ||
@@ -297,6 +323,10 @@ export default function Home() {
         returnShuttleId: participant.returnShuttleId,
         otherRoleText: participant.otherRoleText ?? "",
         stallRoleText: participant.stallRoleText ?? "",
+        nariGomaAltar: participant.nariGomaAltar ?? "any",
+        nariGomaDuties: participant.nariGomaDuties?.length
+          ? participant.nariGomaDuties
+          : ["any"],
         roles: participant.roles,
         carrierSchedule:
           participant.carrierSchedule ?? blankForm.carrierSchedule,
@@ -310,6 +340,9 @@ export default function Home() {
     const selectedRoles = form.attendanceOnly ? [] : form.roles;
     const hasShuttleDriverRole = selectedRoles.some(
       (roleId) => roleName(roleId) === "送迎ドライバー",
+    );
+    const hasNariGomaRole = selectedRoles.some(
+      (roleId) => roleName(roleId) === "鳴り護摩",
     );
     const savedTransportType = hasShuttleDriverRole ? "driver" : form.transportType;
     const usesShuttleSelection =
@@ -325,6 +358,8 @@ export default function Home() {
         transportType: savedTransportType,
         isAbsent: form.attendanceOnly ? false : form.isAbsent,
         roles: selectedRoles,
+        nariGomaAltar: hasNariGomaRole ? form.nariGomaAltar : null,
+        nariGomaDuties: hasNariGomaRole ? form.nariGomaDuties : [],
         rideDriverParticipantId: null,
         usesShuttleSelection,
         outboundShuttleId: usesShuttleSelection ? form.outboundShuttleId : null,
@@ -359,6 +394,8 @@ export default function Home() {
         usesShuttleSelection ? form.returnShuttleId : null,
       otherRoleText: form.otherRoleText.trim(),
       stallRoleText: form.stallRoleText.trim(),
+      nariGomaAltar: hasNariGomaRole ? form.nariGomaAltar : null,
+      nariGomaDuties: hasNariGomaRole ? form.nariGomaDuties : [],
       roles: selectedRoles,
       carrierSchedule: selectedRoles.some((roleId) => roleName(roleId) === "運搬")
         ? form.carrierSchedule
@@ -515,7 +552,7 @@ export default function Home() {
       <header className="topbar">
         <div>
           <p className="eyebrow">参加報告アプリ</p>
-          <h1>{selectedEvent.monthLabel} 明王招福護摩供</h1>
+          <h1>{selectedEvent.monthLabel} {selectedEvent.name}</h1>
         </div>
         <div className="auth-box">
           {data.user ? (
@@ -712,7 +749,7 @@ export default function Home() {
             <fieldset>
               <legend>部署</legend>
               <div className="checkbox-grid">
-                {data.roles.map((role) => {
+                {visibleRoles.map((role) => {
                   const checked = form.roles.includes(role.id);
                   const toggleRole = (isChecked: boolean) => {
                     setForm({
@@ -793,6 +830,85 @@ export default function Home() {
                           }
                         />
                         <span>）</span>
+                      </div>
+                    );
+                  }
+                  if (role.name === "鳴り護摩") {
+                    const toggleNariGomaDuty = (duty: string, isChecked: boolean) => {
+                      let nextDuties = form.nariGomaDuties;
+                      if (duty === "any") {
+                        nextDuties = isChecked ? ["any"] : [];
+                      } else {
+                        nextDuties = isChecked
+                          ? [...nextDuties.filter((item) => item !== "any"), duty]
+                          : nextDuties.filter((item) => item !== duty);
+                      }
+                      setForm({
+                        ...form,
+                        nariGomaDuties: nextDuties.length ? nextDuties : ["any"],
+                      });
+                    };
+                    return (
+                      <div key={role.id} className="nari-goma-control">
+                        <label className="checkline nari-goma-main">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(event) => {
+                              const isChecked = event.target.checked;
+                              setForm({
+                                ...form,
+                                attendanceOnly: isChecked ? false : form.attendanceOnly,
+                                isAbsent: isChecked ? false : form.isAbsent,
+                                nariGomaAltar: isChecked ? form.nariGomaAltar ?? "any" : "any",
+                                nariGomaDuties: isChecked
+                                  ? form.nariGomaDuties.length
+                                    ? form.nariGomaDuties
+                                    : ["any"]
+                                  : ["any"],
+                                roles: isChecked
+                                  ? [...form.roles, role.id]
+                                  : form.roles.filter((id) => id !== role.id),
+                              });
+                            }}
+                          />
+                          鳴り護摩
+                        </label>
+                        {checked && (
+                          <div className="nari-goma-options">
+                            <span className="nari-goma-label">壇</span>
+                            <div className="nari-goma-choice-row">
+                              {nariGomaAltars.map(([value, label]) => (
+                                <label key={value} className="checkline">
+                                  <input
+                                    type="radio"
+                                    name="nari-goma-altar"
+                                    checked={form.nariGomaAltar === value}
+                                    onChange={() =>
+                                      setForm({ ...form, nariGomaAltar: value })
+                                    }
+                                  />
+                                  {label}
+                                </label>
+                              ))}
+                            </div>
+                            <span className="nari-goma-label">役目</span>
+                            <div className="nari-goma-choice-row">
+                              {nariGomaDuties.map(([value, label]) => (
+                                <label key={value} className="checkline">
+                                  <input
+                                    type="checkbox"
+                                    checked={form.nariGomaDuties.includes(value)}
+                                    onChange={(event) =>
+                                      toggleNariGomaDuty(value, event.target.checked)
+                                    }
+                                  />
+                                  {label}
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   }
@@ -1126,7 +1242,9 @@ function Summary({ data, event }: { data: AppData; event: EventRecord }) {
       </div>
       <h3>部署一覧</h3>
       <div className="role-list">
-        {data.roles.map((role) => {
+        {data.roles
+          .filter((role) => role.name !== "鳴り護摩" || isTenchiEvent(event))
+          .map((role) => {
           const members = active.filter((participant) =>
             participant.roles.includes(role.id),
           );
@@ -1140,6 +1258,8 @@ function Summary({ data, event }: { data: AppData; event: EventRecord }) {
                       ? `${member.name}（${member.otherRoleText}）`
                       : role.name === "出店" && member.stallRoleText
                         ? `${member.name}（${member.stallRoleText}）`
+                      : role.name === "鳴り護摩"
+                        ? `${member.name}（${nariGomaText(member)}）`
                       : member.name,
                   )
                   .join("、") || "未定"}
@@ -1162,9 +1282,26 @@ function roleLabels(data: AppData, participant: Participant) {
       if (name === "出店" && participant.stallRoleText) {
         return `出店（${participant.stallRoleText}）`;
       }
+      if (name === "鳴り護摩") {
+        return `鳴り護摩（${nariGomaText(participant)}）`;
+      }
       return name;
     })
     .filter((name): name is string => Boolean(name));
+}
+
+function nariGomaText(participant: Pick<Participant, "nariGomaAltar" | "nariGomaDuties">) {
+  const altar =
+    nariGomaAltars.find(([value]) => value === participant.nariGomaAltar)?.[1] ??
+    "どれでも可";
+  const duties = participant.nariGomaDuties?.length
+    ? participant.nariGomaDuties
+    : ["any"];
+  const dutyText = duties
+    .map((duty) => nariGomaDuties.find(([value]) => value === duty)?.[1])
+    .filter(Boolean)
+    .join("・");
+  return `${altar} / ${dutyText || "どれでも可"}`;
 }
 
 function ShuttleSelect({
