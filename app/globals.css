@@ -461,12 +461,16 @@ tr.absent {
 }
 
 .report table {
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-left: 1.5px solid #111111;
+  border-spacing: 0;
+  border-top: 1.5px solid #111111;
 }
 
 .report table th,
 .report table td {
-  border: 1.2px solid #111111;
+  border-bottom: 1.5px solid #111111;
+  border-right: 1.5px solid #111111;
   padding: 4px 5px;
 }
 
@@ -758,7 +762,10 @@ tr.absent {
   }
 
   .report table {
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-left: 1.5px solid #111111 !important;
+    border-spacing: 0;
+    border-top: 1.5px solid #111111 !important;
   }
 
   th,
@@ -768,7 +775,8 @@ tr.absent {
 
   .report table th,
   .report table td {
-    border: 1.2px solid #111111 !important;
+    border-bottom: 1.5px solid #111111 !important;
+    border-right: 1.5px solid #111111 !important;
     padding: 4px 5px;
   }
 
