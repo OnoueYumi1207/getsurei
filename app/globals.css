@@ -460,6 +460,16 @@ tr.absent {
   margin: 0 auto;
 }
 
+.report table {
+  border-collapse: collapse;
+}
+
+.report table th,
+.report table td {
+  border: 1.2px solid #111111;
+  padding: 4px 5px;
+}
+
 .report h1 {
   font-size: 24px;
   margin: 0 0 4px;
@@ -505,7 +515,6 @@ tr.absent {
 
 .group-stats-table th,
 .group-stats-table td {
-  padding: 4px 6px;
   white-space: nowrap;
 }
 
@@ -521,8 +530,6 @@ tr.absent {
 
 .participants-report-table th,
 .participants-report-table td {
-  border-left: 1px solid var(--line);
-  border-right: 1px solid var(--line);
   overflow-wrap: normal;
   word-break: keep-all;
 }
