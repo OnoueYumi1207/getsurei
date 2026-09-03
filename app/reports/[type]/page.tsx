@@ -297,42 +297,45 @@ function ShuttlesReport({
       {(["outbound", "return"] as const).map((direction) => (
         <section key={direction}>
           <h2>{direction === "outbound" ? "往路" : "復路"}</h2>
-          {data.shuttles
-            .filter((shuttle) => shuttle.direction === direction)
-            .map((shuttle) => {
-              const users = active.filter((participant) =>
-                participant.transportType === "shuttle" &&
-                !participantHasRole(data, participant, "送迎ドライバー") &&
-                (direction === "outbound"
-                  ? participant.outboundShuttleId === shuttle.id
-                  : participant.returnShuttleId === shuttle.id),
-              );
-              const drivers = active.filter((participant) =>
-                participantHasRole(data, participant, "送迎ドライバー") &&
-                (direction === "outbound"
-                  ? participant.outboundShuttleId === shuttle.id
-                  : participant.returnShuttleId === shuttle.id),
-              );
-              return (
-                <div key={shuttle.id} className="shuttle-report-row">
-                  <p>
-                    <strong>
-                      【
-                      {shuttle.name}
-                      {shuttle.capacity ? `（定員${shuttle.capacity}名）` : ""}
-                      {shuttle.note ? `（${shuttle.note}）` : ""}
-                      】
-                    </strong>
-                    <span className="shuttle-role-label">ドライバー：</span>
-                    {drivers.map((driver) => driver.name).join("、") || "0"}
-                  </p>
-                  <p className="shuttle-passenger-list">
-                    <span className="shuttle-role-label">希望者：</span>
-                    {users.map((user) => user.name).join("、") || "0"}
-                  </p>
-                </div>
-              );
-            })}
+          <table className="shuttle-report-table">
+            <thead>
+              <tr>
+                <th>便</th>
+                <th>ドライバー</th>
+                <th>希望者</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.shuttles
+                .filter((shuttle) => shuttle.direction === direction)
+                .map((shuttle) => {
+                  const users = active.filter((participant) =>
+                    participant.transportType === "shuttle" &&
+                    !participantHasRole(data, participant, "送迎ドライバー") &&
+                    (direction === "outbound"
+                      ? participant.outboundShuttleId === shuttle.id
+                      : participant.returnShuttleId === shuttle.id),
+                  );
+                  const drivers = active.filter((participant) =>
+                    participantHasRole(data, participant, "送迎ドライバー") &&
+                    (direction === "outbound"
+                      ? participant.outboundShuttleId === shuttle.id
+                      : participant.returnShuttleId === shuttle.id),
+                  );
+                  return (
+                    <tr key={shuttle.id}>
+                      <th>
+                        {shuttle.name}
+                        {shuttle.capacity ? `（定員${shuttle.capacity}名）` : ""}
+                        {shuttle.note ? `（${shuttle.note}）` : ""}
+                      </th>
+                      <td>{drivers.map((driver) => driver.name).join("、") || "0"}</td>
+                      <td>{users.map((user) => user.name).join("、") || "0"}</td>
+                    </tr>
+                  );
+                })}
+            </tbody>
+          </table>
         </section>
       ))}
     </>

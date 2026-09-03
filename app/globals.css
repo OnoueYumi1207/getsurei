@@ -585,6 +585,26 @@ tr.absent {
   width: auto;
 }
 
+.shuttle-report-table {
+  font-size: 12px;
+  table-layout: fixed;
+}
+
+.shuttle-report-table th:nth-child(1),
+.shuttle-report-table td:nth-child(1) {
+  width: 28%;
+}
+
+.shuttle-report-table th:nth-child(2),
+.shuttle-report-table td:nth-child(2) {
+  width: 28%;
+}
+
+.shuttle-report-table th:nth-child(3),
+.shuttle-report-table td:nth-child(3) {
+  width: 44%;
+}
+
 .print-actions {
   margin: 0 auto 16px;
   max-width: 900px;
@@ -739,12 +759,14 @@ tr.absent {
     padding: 6px;
   }
 
-  .group-stats-table th,
-  .group-stats-table td,
-  .participants-report-table th,
-  .participants-report-table td {
+  .report table th,
+  .report table td {
     border: 1.2px solid #111111 !important;
     padding: 4px 5px;
+  }
+
+  .department-report-table th {
+    width: 1%;
   }
 
   .participants-report-table th:nth-child(1),
