@@ -29,6 +29,13 @@
       "when": 1785233753092,
       "tag": "0003_loud_fantastic_four",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1788432518760,
+      "tag": "0004_skinny_pride",
+      "breakpoints": true
     }
   ]
 }

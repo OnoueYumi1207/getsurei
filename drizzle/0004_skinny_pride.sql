@@ -1,0 +1,1 @@
+ALTER TABLE `participants` ADD `ritual_duties` text;

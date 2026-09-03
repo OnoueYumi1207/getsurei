@@ -33,6 +33,7 @@ type Participant = {
   returnShuttleId: number | null;
   otherRoleText: string;
   stallRoleText: string;
+  ritualDuties: string[];
   nariGomaAltar: string | null;
   nariGomaDuties: string[];
   roles: number[];
@@ -79,6 +80,7 @@ const nariGomaDuties = [
   ["assistant", "補佐"],
   ["reisa", "霊査"],
 ] as const;
+const ritualDuties = ["乾", "坤"] as const;
 const groupPathByName = new Map([
   ["大江戸", "ooedo"],
   ["お台場", "odaiba"],
@@ -102,6 +104,7 @@ const blankForm = {
   returnShuttleId: null as number | null,
   otherRoleText: "",
   stallRoleText: "",
+  ritualDuties: [] as string[],
   nariGomaAltar: "any" as string | null,
   nariGomaDuties: ["any"] as string[],
   roles: [] as number[],
@@ -318,6 +321,7 @@ export default function Home() {
         returnShuttleId: participant.returnShuttleId,
         otherRoleText: participant.otherRoleText ?? "",
         stallRoleText: participant.stallRoleText ?? "",
+        ritualDuties: participant.ritualDuties ?? [],
         nariGomaAltar: participant.nariGomaAltar ?? "any",
         nariGomaDuties: participant.nariGomaDuties?.length
           ? participant.nariGomaDuties
@@ -339,6 +343,9 @@ export default function Home() {
     const hasNariGomaRole = selectedRoles.some(
       (roleId) => roleName(roleId) === "鳴り護摩",
     );
+    const hasRitualRole = selectedRoles.some(
+      (roleId) => roleName(roleId) === "儀式",
+    );
     const savedTransportType = hasShuttleDriverRole ? "driver" : form.transportType;
     const usesShuttleSelection =
       savedTransportType === "shuttle" || hasShuttleDriverRole;
@@ -355,6 +362,7 @@ export default function Home() {
         roles: selectedRoles,
         nariGomaAltar: hasNariGomaRole ? form.nariGomaAltar : null,
         nariGomaDuties: hasNariGomaRole ? form.nariGomaDuties : [],
+        ritualDuties: hasRitualRole ? form.ritualDuties : [],
         rideDriverParticipantId: null,
         usesShuttleSelection,
         outboundShuttleId: usesShuttleSelection ? form.outboundShuttleId : null,
@@ -389,6 +397,7 @@ export default function Home() {
         usesShuttleSelection ? form.returnShuttleId : null,
       otherRoleText: form.otherRoleText.trim(),
       stallRoleText: form.stallRoleText.trim(),
+      ritualDuties: hasRitualRole ? form.ritualDuties : [],
       nariGomaAltar: hasNariGomaRole ? form.nariGomaAltar : null,
       nariGomaDuties: hasNariGomaRole ? form.nariGomaDuties : [],
       roles: selectedRoles,
@@ -831,6 +840,54 @@ export default function Home() {
                       </div>
                     );
                   }
+                  if (role.name === "儀式") {
+                    return (
+                      <div key={role.id} className="nari-goma-control">
+                        <label className="checkline nari-goma-main">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(event) => {
+                              const isChecked = event.target.checked;
+                              setForm({
+                                ...form,
+                                attendanceOnly: isChecked ? false : form.attendanceOnly,
+                                isAbsent: isChecked ? false : form.isAbsent,
+                                ritualDuties: isChecked ? form.ritualDuties : [],
+                                roles: isChecked
+                                  ? [...form.roles, role.id]
+                                  : form.roles.filter((id) => id !== role.id),
+                              });
+                            }}
+                          />
+                          儀式
+                        </label>
+                        {checked && (
+                          <div className="nari-goma-options">
+                            <div className="nari-goma-choice-row">
+                              {ritualDuties.map((duty) => (
+                                <label key={duty} className="checkline">
+                                  <input
+                                    type="checkbox"
+                                    checked={form.ritualDuties.includes(duty)}
+                                    onChange={(event) =>
+                                      setForm({
+                                        ...form,
+                                        ritualDuties: event.target.checked
+                                          ? [...form.ritualDuties, duty]
+                                          : form.ritualDuties.filter((item) => item !== duty),
+                                      })
+                                    }
+                                  />
+                                  {duty}
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
                   if (role.name === "鳴り護摩") {
                     const toggleNariGomaDuty = (duty: string, isChecked: boolean) => {
                       let nextDuties = form.nariGomaDuties;
@@ -1258,6 +1315,8 @@ function Summary({ data, event }: { data: AppData; event: EventRecord }) {
                         ? `${member.name}（${member.stallRoleText}）`
                       : role.name === "鳴り護摩"
                         ? `${member.name}（${nariGomaText(member)}）`
+                      : role.name === "儀式" && member.ritualDuties.length
+                        ? `${member.name}（${member.ritualDuties.join("・")}）`
                       : member.name,
                   )
                   .join("、") || "未定"}
@@ -1282,6 +1341,9 @@ function roleLabels(data: AppData, participant: Participant) {
       }
       if (name === "鳴り護摩") {
         return `鳴り護摩（${nariGomaText(participant)}）`;
+      }
+      if (name === "儀式" && participant.ritualDuties.length) {
+        return `儀式（${participant.ritualDuties.join("・")}）`;
       }
       return name;
     })

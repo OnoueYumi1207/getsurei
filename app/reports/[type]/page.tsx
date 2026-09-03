@@ -25,6 +25,7 @@ type ReportParticipant = {
   returnShuttleId: number | null;
   otherRoleText: string;
   stallRoleText: string;
+  ritualDuties: string[];
   nariGomaAltar: string | null;
   nariGomaDuties: string[];
   roles: number[];
@@ -270,7 +271,9 @@ function RolesReport({
                                 ? `${member.name}（${member.stallRoleText}）`
                               : role.name === "鳴り護摩"
                                 ? `${member.name}（${nariGomaText(member)}）`
-                              : member.name,
+                                : role.name === "儀式" && member.ritualDuties.length
+                                  ? `${member.name}（${member.ritualDuties.join("・")}）`
+                                : member.name,
                         )
                         .join("、")
                     : "未定"}
@@ -355,6 +358,9 @@ function roleText(data: ReportData, participant: ReportParticipant) {
         }
         if (name === "鳴り護摩") {
           return `鳴り護摩（${nariGomaText(participant)}）`;
+        }
+        if (name === "儀式" && participant.ritualDuties.length) {
+          return `儀式（${participant.ritualDuties.join("・")}）`;
         }
         return name;
       })
