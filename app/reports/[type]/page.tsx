@@ -225,7 +225,7 @@ function ParticipantsReport({
                 <td className="participant-name-cell">{participant.name}</td>
                 <td>{roleText(data, participant)}</td>
                 <td className="count-cell">{participant.sendanTeaCount}</td>
-                <td className="nowrap-cell">{transportText(data, participant)}</td>
+                <td className="transport-cell">{transportText(data, participant)}</td>
                 <td className="route-cell">{routeText(data, participant, "outbound")}</td>
                 <td className="route-cell">{routeText(data, participant, "return")}</td>
               </tr>
@@ -384,10 +384,8 @@ function transportText(data: ReportData, participant: ReportParticipant) {
   ) {
     return "";
   }
-  if (participant.transportType === "none") return "";
   if (participant.transportType === "driver") return "車";
-  if (participant.transportType === "passenger") return "同乗";
-  return "送迎希望";
+  return "";
 }
 
 function groupedParticipants(data: ReportData, active: ReportParticipant[]) {

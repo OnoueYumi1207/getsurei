@@ -1125,7 +1125,7 @@ function ParticipantTable({
 }) {
   return (
     <div className="table-wrap">
-      <table>
+      <table className="participant-table">
         <thead>
           <tr>
             <th>欠席</th>
@@ -1158,10 +1158,10 @@ function ParticipantTable({
               <td>
                 {roleLabels(data, participant).join("、")}
               </td>
-              <td>{participant.sendanTeaCount}</td>
-              <td>{transportLabel(participant, data)}</td>
-              <td>{routeLabel(participant, data, "outbound")}</td>
-              <td>{routeLabel(participant, data, "return")}</td>
+              <td className="count-cell">{participant.sendanTeaCount}</td>
+              <td className="transport-cell">{transportLabel(participant, data)}</td>
+              <td className="route-cell">{routeLabel(participant, data, "outbound")}</td>
+              <td className="route-cell">{routeLabel(participant, data, "return")}</td>
               {canEdit && (
                 <td className="row-actions">
                   <button onClick={() => onEdit(participant)}>編集</button>
@@ -1351,10 +1351,8 @@ function transportLabel(participant: Participant, data: AppData) {
   ) {
     return "";
   }
-  if (participant.transportType === "none") return "選択なし";
   if (participant.transportType === "driver") return "車";
-  if (participant.transportType === "passenger") return "同乗";
-  return "送迎希望";
+  return "";
 }
 
 function routeLabel(

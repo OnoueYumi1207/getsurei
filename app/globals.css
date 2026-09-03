@@ -569,6 +569,7 @@ tr.absent {
 .participants-report-table td:nth-child(6),
 .participants-report-table th:nth-child(7),
 .participants-report-table td:nth-child(7) {
+  text-align: center;
   width: 16.5%;
 }
 
@@ -578,9 +579,15 @@ tr.absent {
 
 .group-cell,
 .participant-name-cell,
-.nowrap-cell,
+.transport-cell,
 .route-cell {
   white-space: nowrap;
+}
+
+.count-cell,
+.transport-cell,
+.route-cell {
+  text-align: center;
 }
 
 .department-report-table {
