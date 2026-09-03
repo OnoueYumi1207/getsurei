@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "../chatgpt-auth";
+import { defaultAbsentMembers, sortParticipantsByRoster } from "../participant-order";
 
 const ROLE_NAMES = [
   "運搬",
@@ -73,7 +74,7 @@ const SHUTTLES = [
   ["return", "最終", null, null],
 ] as const;
 
-const INITIALIZATION_VERSION = "2026-08-20-nari-goma-1";
+const INITIALIZATION_VERSION = "2026-09-03-roster-order-1";
 
 let initializationPromise: Promise<void> | null = null;
 let masterDataPromise: Promise<{
@@ -210,13 +211,44 @@ async function runInitialize() {
         .prepare("UPDATE events SET name = ?, month_label = ?, updated_at = ? WHERE id = ?")
         .bind(eventName, monthLabel, now, existing.id)
         .run();
-    }
+      }
   }
+  await ensureDefaultAbsentMembers(d1);
   await d1
     .prepare("INSERT OR REPLACE INTO system_meta (key, value) VALUES ('initialization_version', ?)")
     .bind(INITIALIZATION_VERSION)
     .run();
   masterDataPromise = null;
+}
+
+async function ensureDefaultAbsentMembers(d1: D1Database) {
+  const [groups, events] = await d1.batch([
+    d1.prepare("SELECT id, name FROM groups"),
+    d1.prepare("SELECT id FROM events"),
+  ]);
+  const groupIds = new Map(
+    (groups.results ?? []).map((group) => [group.name as string, group.id as number]),
+  );
+  const now = new Date().toISOString();
+  const inserts = [];
+  for (const member of defaultAbsentMembers()) {
+    const groupId = groupIds.get(member.groupName);
+    if (!groupId) continue;
+    for (const event of events.results ?? []) {
+      const eventId = event.id as number;
+      const existing = await d1
+        .prepare("SELECT id FROM participants WHERE event_id = ? AND group_id = ? AND replace(replace(name, ' ', ''), '　', '') = ?")
+        .bind(eventId, groupId, member.name.replace(/[\s\u3000]/g, ""))
+        .first();
+      if (!existing) {
+        inserts.push(
+          d1.prepare("INSERT INTO participants (event_id, group_id, name, is_absent, sendan_tea_count, transport_type, ride_driver_participant_id, outbound_shuttle_id, return_shuttle_id, other_role_text, stall_role_text, nari_goma_altar, nari_goma_duties, created_at, updated_at) VALUES (?, ?, ?, 1, 0, 'none', NULL, NULL, NULL, '', '', NULL, NULL, ?, ?)")
+            .bind(eventId, groupId, member.name, now, now),
+        );
+      }
+    }
+  }
+  if (inserts.length) await d1.batch(inserts);
 }
 
 async function addParticipantColumn(d1: D1Database, columnSql: string) {
@@ -350,8 +382,8 @@ export async function appData(
   const [participants, participantRoles, schedules] = activeEventId
     ? await d1.batch([
         activeGroupId
-          ? d1.prepare("SELECT id, event_id AS eventId, group_id AS groupId, name, is_absent AS isAbsent, sendan_tea_count AS sendanTeaCount, transport_type AS transportType, ride_driver_participant_id AS rideDriverParticipantId, outbound_shuttle_id AS outboundShuttleId, return_shuttle_id AS returnShuttleId, other_role_text AS otherRoleText, stall_role_text AS stallRoleText, nari_goma_altar AS nariGomaAltar, nari_goma_duties AS nariGomaDuties, created_at AS createdAt, updated_at AS updatedAt FROM participants WHERE event_id = ? AND group_id = ? ORDER BY group_id, name").bind(activeEventId, activeGroupId)
-          : d1.prepare("SELECT id, event_id AS eventId, group_id AS groupId, name, is_absent AS isAbsent, sendan_tea_count AS sendanTeaCount, transport_type AS transportType, ride_driver_participant_id AS rideDriverParticipantId, outbound_shuttle_id AS outboundShuttleId, return_shuttle_id AS returnShuttleId, other_role_text AS otherRoleText, stall_role_text AS stallRoleText, nari_goma_altar AS nariGomaAltar, nari_goma_duties AS nariGomaDuties, created_at AS createdAt, updated_at AS updatedAt FROM participants WHERE event_id = ? ORDER BY group_id, name").bind(activeEventId),
+          ? d1.prepare("SELECT id, event_id AS eventId, group_id AS groupId, name, is_absent AS isAbsent, sendan_tea_count AS sendanTeaCount, transport_type AS transportType, ride_driver_participant_id AS rideDriverParticipantId, outbound_shuttle_id AS outboundShuttleId, return_shuttle_id AS returnShuttleId, other_role_text AS otherRoleText, stall_role_text AS stallRoleText, nari_goma_altar AS nariGomaAltar, nari_goma_duties AS nariGomaDuties, created_at AS createdAt, updated_at AS updatedAt FROM participants WHERE event_id = ? AND group_id = ? ORDER BY group_id, id").bind(activeEventId, activeGroupId)
+          : d1.prepare("SELECT id, event_id AS eventId, group_id AS groupId, name, is_absent AS isAbsent, sendan_tea_count AS sendanTeaCount, transport_type AS transportType, ride_driver_participant_id AS rideDriverParticipantId, outbound_shuttle_id AS outboundShuttleId, return_shuttle_id AS returnShuttleId, other_role_text AS otherRoleText, stall_role_text AS stallRoleText, nari_goma_altar AS nariGomaAltar, nari_goma_duties AS nariGomaDuties, created_at AS createdAt, updated_at AS updatedAt FROM participants WHERE event_id = ? ORDER BY group_id, id").bind(activeEventId),
         activeGroupId
           ? d1.prepare("SELECT participant_id AS participantId, role_id AS roleId FROM participant_roles WHERE participant_id IN (SELECT id FROM participants WHERE event_id = ? AND group_id = ?)").bind(activeEventId, activeGroupId)
           : d1.prepare("SELECT participant_id AS participantId, role_id AS roleId FROM participant_roles WHERE participant_id IN (SELECT id FROM participants WHERE event_id = ?)").bind(activeEventId),
@@ -385,7 +417,10 @@ export async function appData(
     roles,
     shuttles,
     events: eventRows,
-    participants: (participants.results ?? []).map((participant) => ({
+    participants: sortParticipantsByRoster(
+      groups as { id: number; name: string }[],
+      (participants.results ?? []) as { id: number; groupId: number; name: string }[],
+    ).map((participant) => ({
       ...participant,
       isAbsent: Boolean(participant.isAbsent),
       otherRoleText: participant.otherRoleText ?? "",

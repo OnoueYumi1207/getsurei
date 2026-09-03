@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { sortParticipantsByRoster } from "./participant-order";
 
 type Group = { id: number; name: string; editorName: string; editorNames: string[] };
 type Role = { id: number; name: string; sortOrder: number };
@@ -139,12 +140,6 @@ function groupPath(group: Group) {
 
 function isTenchiEvent(event?: EventRecord) {
   return event?.name === "天地免劫修法";
-}
-
-function sortParticipants(participants: Participant[]) {
-  return [...participants].sort(
-    (a, b) => a.groupId - b.groupId || a.name.localeCompare(b.name, "ja"),
-  );
 }
 
 export default function Home() {
@@ -409,7 +404,10 @@ export default function Home() {
       );
       return {
         ...current,
-        participants: sortParticipants([...withoutSaved, savedParticipant]),
+        participants: sortParticipantsByRoster(
+          current.groups,
+          [...withoutSaved, savedParticipant],
+        ),
       };
     });
     setEditing(null);
