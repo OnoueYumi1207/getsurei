@@ -574,7 +574,12 @@ tr.absent {
 }
 
 .group-cell {
+  border-right: 0 !important;
   vertical-align: top;
+}
+
+.participants-report-table .participant-name-cell {
+  border-left: 1.5px solid #111111;
 }
 
 .group-cell,
@@ -785,6 +790,14 @@ tr.absent {
     border-bottom: 1.5px solid #111111 !important;
     border-right: 1.5px solid #111111 !important;
     padding: 4px 5px;
+  }
+
+  .participants-report-table .group-cell {
+    border-right: 0 !important;
+  }
+
+  .participants-report-table .participant-name-cell {
+    border-left: 1.5px solid #111111 !important;
   }
 
   .department-report-table th {
