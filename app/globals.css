@@ -730,14 +730,20 @@ tr.absent {
     padding: 0;
   }
 
+  .report table {
+    border-collapse: collapse;
+  }
+
   th,
   td {
     padding: 6px;
   }
 
+  .group-stats-table th,
+  .group-stats-table td,
   .participants-report-table th,
   .participants-report-table td {
-    border: 1px solid #111111;
+    border: 1.2px solid #111111 !important;
     padding: 4px 5px;
   }
 
